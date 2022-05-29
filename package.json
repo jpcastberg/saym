@@ -6,9 +6,9 @@
   "author": "john castberg",
   "license": "ISC",
   "scripts": {
-    "test": "jest --setupFiles dotenv/config",
-    "dev": "nodemon -r dotenv/config ./src/server/index.ts",
-    "start": "ts-node -r dotenv/config ./src/server/index.ts"
+    "test": "jest",
+    "dev": "nodemon -r dotenv/config ./server/index.ts",
+    "start": "ts-node -r dotenv/config ./server/index.ts"
   },
   "devDependencies": {
     "@jest/globals": "^28.1.0",
