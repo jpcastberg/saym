@@ -2,12 +2,11 @@ import express from "express";
 import tokenHandler from "./token_handler";
 
 const app = express();
-const port = 3000;
 
 app.use(tokenHandler);
 
 app.get("/", (req, res) => {
-    // intro page, start game, join existing, list in-progress
+    // intro page, start game, list in-progress
     const response = `Your user id is ${res.locals.user.user_id}! Your token is ${res.locals.token}!`;
     res.send(response);
 });
@@ -32,6 +31,4 @@ app.post("/games/:gameId/turn", (req, res) => {
     res.send("Hello World!");
 });
 
-app.listen(port, () => {
-    console.log(`Example app listening on port ${port}`);
-});
+export default app;
