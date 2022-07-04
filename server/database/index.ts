@@ -8,25 +8,26 @@ const options = { "useNewUrlParser": true, "useUnifiedTopology": true, "serverAp
 const client = new MongoClient(mongoUri, options as MongoClientOptions);
 
 export interface TokenModel {
+    _id: string;
     user_id: string;
     token: string;
 }
 
 export interface UserModel {
-    user_id: string;
+    _id: string;
     username: string;
 }
 
 export interface GameModel {
-    game_id: string;
+    _id: string;
     player_one_user_id: string;
-    player_two_user_id: string;
-    player_one_turns: string;
-    player_two_turns: string;
+    player_two_user_id: string | null;
+    player_one_turns: string[];
+    player_two_turns: string[];
     is_game_complete: boolean;
 }
 
-class TokenApi {
+class TokensDbApi {
     async get(token: string) {
         const db = await dbConnect();
         const tokens = db.collection<TokenModel>("tokens");
@@ -39,36 +40,33 @@ class TokenApi {
         const db = await dbConnect();
         const tokens = db.collection<TokenModel>("tokens");
         const newToken: TokenModel = {
+            "_id": generateId(),
             "user_id": userId,
             token
         };
 
-        await tokens.insertOne(newToken);
-        return await this.get(token);
+        return await tokens.insertOne(newToken);
     }
 }
 
-class UserApi {
+class UsersDbApi {
     async get(userId: string) {
         const db = await dbConnect();
         const users = db.collection<UserModel>("users");
-        return await users.findOne({
-            "user_id": userId
+        return users.findOne({
+            "_id": userId
         });
     }
 
     async create(username: string) {
         const db = await dbConnect();
         const users = db.collection<UserModel>("users");
-        const newUserId = generateId(4);
         const newUser: UserModel = {
-            "user_id": newUserId,
+            "_id": generateId(),
             username
         };
 
-        await users.insertOne(newUser);
-
-        return await this.get(newUserId);
+        return await users.insertOne(newUser);
     }
 
     async update(userId: string, username: string) {
@@ -78,7 +76,7 @@ class UserApi {
             username
         };
         const filter: Filter<UserModel> = {
-            "user_id": userId
+            "_id": userId
         };
 
         const result = await users.findOneAndUpdate(filter, updatedUser);
@@ -87,75 +85,93 @@ class UserApi {
     }
 }
 
-class GameApi {
-    private getPlayerFilterExpression;
-    constructor () {
-        this.getPlayerFilterExpression = function (userId: string) {
-            return {
-                "$function": {
-                    "body": function (playerOneUserId: string, playerTwoUserId: string) {
-                        return userId === playerOneUserId ||
-                            userId === playerTwoUserId;
-                    },
-                    "args": [
-                        "$player_one_user_id",
-                        "$player_two_user_id"
-                    ],
-                    "lang": "js"
-                }
-            };
-        };
-    }
-
+class GamesDbApi {
     async get(gameId: string, userId: string) {
         const db = await dbConnect();
-        const games = db.collection<UserModel>("games");
+        const games = db.collection<GameModel>("games");
         return await games.findOne({
-            "game_id": gameId,
-            "$expr": this.getPlayerFilterExpression(userId)
+            "_id": gameId,
+            "$or": this.getPlayerFilterExpression(userId, false)
         });
     }
 
     async getAll(userId: string) {
         const db = await dbConnect();
-        const games = db.collection<UserModel>("games");
-        return await games.find({
-            "$expr": this.getPlayerFilterExpression(userId)
-        });
+        const games = db.collection<GameModel>("games");
+        return games.find({
+            "$or": this.getPlayerFilterExpression(userId, false)
+        }).toArray();
     }
 
-    async create(username: string) {
+    async create(playerOneUserId: string, playerTwoUserId: string) {
         const db = await dbConnect();
-        const users = db.collection<UserModel>("users");
-        const newUserId = generateId(4);
-        const newUser: UserModel = {
-            "user_id": newUserId,
-            username
+        const games = db.collection<GameModel>("games");
+        const newGame: GameModel = {
+            "_id": generateId(),
+            "player_one_user_id": playerOneUserId,
+            "player_two_user_id": playerTwoUserId,
+            "player_one_turns": [],
+            "player_two_turns": [],
+            "is_game_complete": false
         };
 
-        await users.insertOne(newUser);
-
-        // return await this.get(newUserId);
+        return await games.insertOne(newGame);
     }
 
-    async update(userId: string, username: string) {
+    async update(
+        userId: string,
+        gameId: string,
+        playerTwoUserId: string | null,
+        playerOneTurn: string | null,
+        playerTwoTurn: string | null,
+        isGameComplete: boolean | null
+    ) {
         const db = await dbConnect();
-        const users = db.collection<UserModel>("users");
-        const updatedUser: UpdateFilter<UserModel> = {
-            username
+        const games = db.collection<GameModel>("games");
+        const filter: Filter<GameModel> = {
+            "_id": gameId,
+            "$or": this.getPlayerFilterExpression(userId, Boolean(playerTwoUserId))
         };
-        const filter: Filter<UserModel> = {
-            "user_id": userId
-        };
+        const gameUpdates: UpdateFilter<GameModel> = {};
+        const $set: Record<string, string | boolean> = {};
 
-        const result = await users.findOneAndUpdate(filter, updatedUser);
+        if (playerTwoUserId) {
+            $set.player_two_user_id = playerTwoUserId;
+        }
+
+        if (playerOneTurn) {
+            gameUpdates.$push = {
+                "player_one_turns": playerOneTurn
+            };
+        } else if (playerTwoTurn) {
+            gameUpdates.$push = {
+                "player_two_turns": playerTwoTurn
+            };
+
+            if (isGameComplete) {
+                $set.is_game_complete = isGameComplete;
+            }
+        }
+
+        gameUpdates.$set = $set;
+        const result = await games.findOneAndUpdate(filter, gameUpdates);
 
         return result.value;
     }
+
+    private getPlayerFilterExpression = function (userId: string, isNewPlayer: boolean) {
+        return [{
+            "player_one_user_id": userId,
+        }, {
+            "player_two_user_id": isNewPlayer ? null : userId
+        }];
+    };
 }
 
-export const tokenModel = new TokenApi();
-export const userModel = new UserApi();
+export const tokensDbApi = new TokensDbApi();
+export const usersDbApi = new UsersDbApi();
+export const gamesDbApi = new GamesDbApi();
+
 
 export async function dbClose() {
     await client.close();
