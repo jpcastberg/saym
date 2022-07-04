@@ -2,12 +2,11 @@
   "name": "saym",
   "version": "1.0.0",
   "description": "say the same thing clone",
-  "main": "index.js",
   "author": "john castberg",
   "license": "ISC",
   "scripts": {
     "test": "jest",
-    "dev": "nodemon -r dotenv/config ./server/index.ts",
+    "dev": "nodemon --watch server -r dotenv/config ./server/index.ts",
     "start": "ts-node -r dotenv/config ./server/index.ts"
   },
   "devDependencies": {
