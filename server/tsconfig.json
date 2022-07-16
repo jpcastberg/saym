@@ -1,0 +1,14 @@
+{
+    "extends": "@tsconfig/recommended/tsconfig.json",
+    "include": [
+        "client/src/**/*",
+        "client/src/**/*.vue"
+    ],
+    "compilerOptions": {
+        "esModuleInterop": true,
+        "noImplicitAny": false,
+        "target": "ESNext",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext"
+    }
+}
