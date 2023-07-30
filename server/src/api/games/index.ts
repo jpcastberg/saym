@@ -35,43 +35,49 @@ gamesApi.post("/:gameId/join", async (req, res) => {
 });
 
 gamesApi.post("/:gameId/turns", async (req, res) => {
+    console.log("called /turns");
     const { "params": { gameId }, "body": { turn } } = req;
     const { "locals": { userId } } = res;
     const currentGame = await gamesDbApi.get(gameId, userId);
+    const sanitizedTurn = sanitize(turn);
     let playerOneTurn: string | null = null;
     let playerTwoTurn: string | null = null;
     let isGameComplete: boolean | null = null;
 
-    if (!turn) {
-        // 400
+    if (!currentGame) {
+        res.status(404);
+        res.send();
         return;
-    } else if (!currentGame) {
-        // 404
+    } else if (!sanitizedTurn || currentGame.isGameComplete) {
+        res.status(400);
+        res.send();
         return;
     }
 
-    if (currentGame.player_one_turns.length ===
-        currentGame.player_two_turns.length &&
-        currentGame.player_one_user_id === userId) {
-        playerOneTurn = turn;
-    } else if (currentGame.player_one_turns.length ===
-        currentGame.player_two_turns.length + 1 &&
-        currentGame.player_two_user_id === userId)  {
-        playerTwoTurn = turn;
-
-        if (currentGame.player_one_turns[currentGame.player_one_turns.length - 1]
-            .toLowerCase() === turn.toLowerCase()) {
-            isGameComplete = true;
-        }
+    if (currentGame.playerOneUserId === userId) {
+        playerOneTurn = sanitizedTurn;
+    } else if (currentGame.playerTwoUserId === userId) {
+        playerTwoTurn = sanitizedTurn;
     }
 
-    gamesDbApi.update(userId, gameId, null,
+    if ((playerOneTurn && !isValidTurn(playerOneTurn, currentGame.playerOneTurns, currentGame.playerTwoTurns)) ||
+        (playerTwoTurn && !isValidTurn(playerTwoTurn, currentGame.playerTwoTurns, currentGame.playerOneTurns))) {
+        res.status(400);
+        res.send();
+    }
+
+    if (playerOneTurn && isWinningTurn(playerOneTurn, currentGame.playerOneTurns, currentGame.playerTwoTurns) ||
+        playerTwoTurn && isWinningTurn(playerTwoTurn, currentGame.playerTwoTurns, currentGame.playerOneTurns)) {
+        isGameComplete = true;
+    }
+
+    await gamesDbApi.update(userId, gameId, null,
         playerOneTurn, playerTwoTurn, isGameComplete);
-    const game = gamesDbApi.get(gameId, userId);
+    const game = await gamesDbApi.get(gameId, userId);
     res.send(game);
 });
 
-gamesApi.post("/:gameId/complete", async (req, res) => {
+gamesApi.post("/:gameId/complete", async (req, res) => { // manually mark game as complete
     const { "params": { gameId } } = req;
     const { "locals": { userId } } = res;
     const currentGame = await gamesDbApi.get(gameId, userId);
@@ -82,7 +88,7 @@ gamesApi.post("/:gameId/complete", async (req, res) => {
         return;
     }
 
-    if (currentGame.player_one_turns.length === currentGame.player_two_turns.length) {
+    if (currentGame.playerOneTurns.length === currentGame.playerTwoTurns.length) {
         dbResponse = await gamesDbApi.update(userId, gameId, null, null, null, true);
     } else {
         // 400
@@ -95,5 +101,19 @@ gamesApi.post("/:gameId/notifications", (req, res) => {
     // post word
     res.send("Hello World!");
 });
+
+function sanitize(turn: string): string {
+    return turn.replace(/\s+/, " ").replace(/[^0-9a-z\s]/gi, "");
+}
+
+function isValidTurn(turn: string, currentPlayerTurns: string[], otherPlayerTurns: string[]): boolean {
+    // todo: regex validation?
+    return Boolean(turn) && (currentPlayerTurns.length === otherPlayerTurns.length || currentPlayerTurns.length === otherPlayerTurns.length - 1);
+}
+
+function isWinningTurn(turn: string, currentPlayerTurns: string[], otherPlayerTurns: string[]): boolean {
+    return currentPlayerTurns.length === otherPlayerTurns.length - 1 &&
+        turn.trim().toLowerCase() === otherPlayerTurns[otherPlayerTurns.length - 1].trim().toLowerCase();
+}
 
 export default gamesApi;

@@ -28,7 +28,7 @@ describe("Access Tokens", () => {
         request(app)
             .get("/")
             .then(response => {
-                const { "header": { "set-cookie": [ cookieHeader ] } } = response;
+                const { "header": { "set-cookie": [cookieHeader] } } = response;
                 expect(cookieHeader)
                     .toMatch(/token=[A-Z\d]+; Path=\/; HttpOnly; SameSite=Strict/);
                 done();
@@ -65,18 +65,18 @@ describe("Games", () => {
                 expect(typeof body._id).toBe("string");
                 expect(body._id).toBeTruthy();
 
-                expect(typeof body.player_one_user_id).toBe("string");
-                expect(body.player_one_user_id).toBeTruthy();
+                expect(typeof body.playerOneUserId).toBe("string");
+                expect(body.playerOneUserId).toBeTruthy();
 
-                expect(body.player_two_user_id).toBeNull();
+                expect(body.playerTwoUserId).toBeNull();
 
-                expect(Array.isArray(body.player_one_turns)).toBe(true);
-                expect(body.player_one_turns).toHaveLength(0);
+                expect(Array.isArray(body.playerOneTurns)).toBe(true);
+                expect(body.playerOneTurns).toHaveLength(0);
 
-                expect(Array.isArray(body.player_two_turns)).toBe(true);
-                expect(body.player_two_turns).toHaveLength(0);
+                expect(Array.isArray(body.playerTwoTurns)).toBe(true);
+                expect(body.playerTwoTurns).toHaveLength(0);
 
-                expect(body.is_game_complete).toBe(false);
+                expect(body.isGameComplete).toBe(false);
 
                 done();
             });
@@ -93,20 +93,20 @@ describe("Games", () => {
                     .then(response => {
                         const { "body": existingGame } = response;
 
-                        expect(typeof existingGame.player_one_user_id).toBe("string");
-                        expect(existingGame.player_one_user_id).toBeTruthy();
+                        expect(typeof existingGame.playerOneUserId).toBe("string");
+                        expect(existingGame.playerOneUserId).toBeTruthy();
 
-                        expect(typeof existingGame.player_two_user_id).toBe("string");
-                        expect(existingGame.player_two_user_id).toBeTruthy();
-                        expect(existingGame.player_two_user_id).not.toEqual(existingGame.player_one_user_id);
+                        expect(typeof existingGame.playerTwoUserId).toBe("string");
+                        expect(existingGame.playerTwoUserId).toBeTruthy();
+                        expect(existingGame.playerTwoUserId).not.toEqual(existingGame.playerOneUserId);
 
-                        expect(Array.isArray(existingGame.player_one_turns)).toBe(true);
-                        expect(existingGame.player_one_turns).toHaveLength(0);
+                        expect(Array.isArray(existingGame.playerOneTurns)).toBe(true);
+                        expect(existingGame.playerOneTurns).toHaveLength(0);
 
-                        expect(Array.isArray(existingGame.player_two_turns)).toBe(true);
-                        expect(existingGame.player_two_turns).toHaveLength(0);
+                        expect(Array.isArray(existingGame.playerTwoTurns)).toBe(true);
+                        expect(existingGame.playerTwoTurns).toHaveLength(0);
 
-                        expect(existingGame.is_game_complete).toBe(false);
+                        expect(existingGame.isGameComplete).toBe(false);
 
                         done();
                     });

@@ -20,11 +20,11 @@ export interface UserModel {
 
 export interface GameModel {
     _id: string;
-    player_one_user_id: string;
-    player_two_user_id: string | null;
-    player_one_turns: string[];
-    player_two_turns: string[];
-    is_game_complete: boolean;
+    playerOneUserId: string;
+    playerTwoUserId: string | null;
+    playerOneTurns: string[];
+    playerTwoTurns: string[];
+    isGameComplete: boolean;
 }
 
 class TokensDbApi {
@@ -73,7 +73,9 @@ class UsersDbApi {
         const db = await dbConnect();
         const users = db.collection<UserModel>("users");
         const updatedUser: UpdateFilter<UserModel> = {
-            username
+            "$set": {
+                username
+            }
         };
         const filter: Filter<UserModel> = {
             "_id": userId
@@ -108,11 +110,11 @@ class GamesDbApi {
         const games = db.collection<GameModel>("games");
         const newGame: GameModel = {
             "_id": generateId(),
-            "player_one_user_id": playerOneUserId,
-            "player_two_user_id": playerTwoUserId,
-            "player_one_turns": [],
-            "player_two_turns": [],
-            "is_game_complete": false
+            "playerOneUserId": playerOneUserId,
+            "playerTwoUserId": playerTwoUserId,
+            "playerOneTurns": [],
+            "playerTwoTurns": [],
+            "isGameComplete": false
         };
 
         return await games.insertOne(newGame);
@@ -136,20 +138,21 @@ class GamesDbApi {
         const $set: Record<string, string | boolean> = {};
 
         if (playerTwoUserId) {
-            $set.player_two_user_id = playerTwoUserId;
+            $set.playerTwoUserId = playerTwoUserId;
+            console.log("set player 2 user id");
         }
 
         if (playerOneTurn) {
             gameUpdates.$push = {
-                "player_one_turns": playerOneTurn
+                "playerOneTurns": playerOneTurn
             };
         } else if (playerTwoTurn) {
             gameUpdates.$push = {
-                "player_two_turns": playerTwoTurn
+                "playerTwoTurns": playerTwoTurn
             };
 
             if (isGameComplete) {
-                $set.is_game_complete = isGameComplete;
+                $set.isGameComplete = isGameComplete;
             }
         }
 
@@ -161,9 +164,9 @@ class GamesDbApi {
 
     private getPlayerFilterExpression = function (userId: string, isNewPlayer: boolean) {
         return [{
-            "player_one_user_id": userId,
+            "playerOneUserId": userId,
         }, {
-            "player_two_user_id": isNewPlayer ? null : userId
+            "playerTwoUserId": isNewPlayer ? null : userId
         }];
     };
 }
