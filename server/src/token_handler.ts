@@ -1,8 +1,9 @@
 import express from "express";
 import cookie from "cookie";
 import crypto from "crypto";
-import { tokensDbApi, usersDbApi, TokenModel, UserModel } from "./database";
 import { InsertOneResult } from "mongodb";
+import { tokensDbApi, usersDbApi, TokenModel } from "./database";
+import { UserModel } from "../../shared/models/UserModels";
 
 export default async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const providedToken = cookie.parse(req.headers.cookie || "").token ||
@@ -29,7 +30,7 @@ export default async (req: express.Request, res: express.Response, next: express
         if (userCreateResponse) {
             res.locals.userId = userId;
             const newAccessToken = createToken();
-            await tokensDbApi.create(newAccessToken, userId);
+            await tokensDbApi.create(newAccessToken, userId as string);
             console.log(`set new access token: ${newAccessToken}, for user: ${userId}`);
             res.locals.token = newAccessToken;
         }

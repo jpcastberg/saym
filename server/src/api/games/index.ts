@@ -1,6 +1,7 @@
 import express from "express";
 import { WithId } from "mongodb";
-import { GameModel, gamesDbApi } from "../../database";
+import { gamesDbApi } from "../../database";
+import { GameModel } from "../../../../shared/models/GameModels";
 
 const gamesApi = express.Router();
 

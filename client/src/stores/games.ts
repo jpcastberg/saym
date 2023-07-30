@@ -1,25 +1,19 @@
 import { defineStore } from "pinia";
-import { useUserStore } from "@/stores/user";
+import { type GameModel } from "../../../shared/models/GameModels";
 
-const userStore = useUserStore();
-
-interface GameModel {
-    playerOneUserId: string,
-    playerTwoUserId: string,
-    playerOneTurns: string[],
-    playerTwoTurns: string[],
-    isGameComplete: boolean,
-    otherUserUsername: string,
-    isCurrentUsersTurn: boolean,
-
-}
+// const userStore = useUserStore();
 
 interface ComputedGameModel extends GameModel {
     otherUserUsername: string,
     isCurrentUsersTurn: boolean,
 }
 
-const sampleGames = [{
+interface GamesState {
+    currentGames: ComputedGameModel[],
+    finishedGames: GameModel[]
+}
+
+const sampleGames: GameModel[] = [{
     "_id": "b85a49ed",
     "playerOneUserId": "88f6c7d8",
     "playerTwoUserId": null,
@@ -36,26 +30,25 @@ const sampleGames = [{
 }];
 
 export const useGamesStore = defineStore("games", {
-    "state": () => ({
+    "state": (): GamesState => ({
         "currentGames": [],
         "finishedGames": []
     }),
     "getters": {
-        async getCurrentGames() {
+        async getCurrentGames(): Promise<ComputedGameModel[]> {
             // await fetch("/api/games")
-            const currentGames = [];
-            const otherPlayerUsername = "Bobson";
+            const currentGames: ComputedGameModel[] = [];
+            // const otherPlayerUsername = "Bobson";
             for (const sampleGame of sampleGames) {
-                const clonedGame = cloneJson(sampleGame);
-                // fetch other player's username
-                currentGames.push(clonedGame);
+                currentGames.push({
+                    ...sampleGame,
+                    "isCurrentUsersTurn": true,
+                    "otherUserUsername": "Bobson"
+                });
+
             }
 
             return currentGames;
         }
     }
 });
-
-function cloneJson(json: object): object {
-    return JSON.parse(JSON.stringify(json));
-}

@@ -1,6 +1,7 @@
 import express from "express";
 import { WithId } from "mongodb";
-import { UserModel, usersDbApi } from "../../database";
+import { usersDbApi } from "../../database";
+import { type UserUpdateModel, type UserModel } from "../../../../shared/models/UserModels";
 
 const usersApi = express.Router();
 
@@ -13,10 +14,10 @@ usersApi.get("/me", async (req, res) => {
 
 usersApi.put("/me", async (req, res) => {
     const { "locals": { userId } } = res;
-    const { "body": { username } } = req;
-    console.log("PUT /api/users/me, username = " + username);
+    const userUpdateBody: UserUpdateModel = req.body;
+    const username: string = userUpdateBody.username;
     await usersDbApi.update(userId, username);
-    const dbResponse = await usersDbApi.get(userId);
+    const dbResponse: WithId<UserModel> | null = await usersDbApi.get(userId);
     res.send(dbResponse);
 });
 

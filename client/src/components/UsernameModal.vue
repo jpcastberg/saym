@@ -24,7 +24,7 @@ function handleInput(event: InputEvent) {
             </v-card-title>
             <v-form class="pa-5 d-flex flex-column align-center" @submit="handleUsernameFormSubmit">
                 <v-card-text class="w-100">
-                    <v-text-field v-model="userStore.usernameInput" label="What should we call you?" @input="handleInput"
+                    <v-text-field v-model="appStore.usernameInput" label="What should we call you?" @input="handleInput"
                         required />
                 </v-card-text>
                 <v-card-actions class="py-0">

@@ -2,7 +2,6 @@ import express from "express";
 import tokenHandler from "./token_handler";
 import gamesApi from "./api/games";
 import usersApi from "./api/users";
-import path from "path";
 
 const app = express();
 

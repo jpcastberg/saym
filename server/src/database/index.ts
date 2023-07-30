@@ -1,5 +1,7 @@
 import { Filter, MongoClient, MongoClientOptions, ServerApiVersion, UpdateFilter } from "mongodb";
 import generateId from "../utils/id_generator";
+import { type UserModel } from "../../../shared/models/UserModels";
+import { type GameModel } from "../../../shared/models/GameModels";
 
 const mongoUri: string = "mongodb+srv://" +
     process.env.DB_USERNAME + ":" + process.env.DB_PASSWORD +
@@ -11,20 +13,6 @@ export interface TokenModel {
     _id: string;
     user_id: string;
     token: string;
-}
-
-export interface UserModel {
-    _id: string;
-    username: string;
-}
-
-export interface GameModel {
-    _id: string;
-    playerOneUserId: string;
-    playerTwoUserId: string | null;
-    playerOneTurns: string[];
-    playerTwoTurns: string[];
-    isGameComplete: boolean;
 }
 
 class TokensDbApi {
