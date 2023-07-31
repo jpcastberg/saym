@@ -9,6 +9,7 @@ interface ComputedGameModel extends GameModel {
 }
 
 interface GamesState {
+    areGamesInitialized: boolean,
     currentGames: ComputedGameModel[],
     finishedGames: GameModel[]
 }
@@ -27,28 +28,36 @@ const sampleGames: GameModel[] = [{
     "playerOneTurns": [],
     "playerTwoTurns": [],
     "isGameComplete": false
+}, {
+    "_id": "b85a49ed",
+    "playerOneUserId": "88f6c7d8",
+    "playerTwoUserId": null,
+    "playerOneTurns": [],
+    "playerTwoTurns": [],
+    "isGameComplete": true
 }];
 
 export const useGamesStore = defineStore("games", {
     "state": (): GamesState => ({
+        "areGamesInitialized": false,
         "currentGames": [],
         "finishedGames": []
     }),
-    "getters": {
-        async getCurrentGames(): Promise<ComputedGameModel[]> {
-            // await fetch("/api/games")
-            const currentGames: ComputedGameModel[] = [];
-            // const otherPlayerUsername = "Bobson";
+    "actions": {
+        async initGames(): Promise<void> {
             for (const sampleGame of sampleGames) {
-                currentGames.push({
-                    ...sampleGame,
-                    "isCurrentUsersTurn": true,
-                    "otherUserUsername": "Bobson"
-                });
+                if (sampleGame.isGameComplete) {
+                    this.finishedGames.push(sampleGame);
+                } else {
+                    this.currentGames.push({
+                        ...sampleGame,
+                        "isCurrentUsersTurn": true,
+                        "otherUserUsername": "Bobson"
+                    });
+                }
 
+                this.areGamesInitialized = true;
             }
-
-            return currentGames;
         }
     }
 });
