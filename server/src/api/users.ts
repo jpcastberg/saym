@@ -1,7 +1,7 @@
 import express from "express";
 import { WithId } from "mongodb";
-import { usersDbApi } from "../../database";
-import { type UserUpdateModel, type UserModel } from "../../../../shared/models/UserModels";
+import { usersDbApi } from "../database";
+import { type UserUpdateModel, type UserModel } from "../../../shared/models/UserModels";
 
 const usersApi = express.Router();
 

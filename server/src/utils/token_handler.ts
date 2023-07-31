@@ -2,8 +2,8 @@ import express from "express";
 import cookie from "cookie";
 import crypto from "crypto";
 import { InsertOneResult } from "mongodb";
-import { tokensDbApi, usersDbApi, TokenModel } from "./database";
-import { UserModel } from "../../shared/models/UserModels";
+import { tokensDbApi, usersDbApi, TokenModel } from "../database";
+import { UserModel } from "../../../shared/models/UserModels";
 
 export default async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const providedToken = cookie.parse(req.headers.cookie || "").token ||

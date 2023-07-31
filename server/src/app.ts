@@ -1,5 +1,5 @@
 import express from "express";
-import tokenHandler from "./token_handler";
+import tokenHandler from "./utils/token_handler";
 import gamesApi from "./api/games";
 import usersApi from "./api/users";
 

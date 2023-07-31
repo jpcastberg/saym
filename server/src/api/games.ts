@@ -1,8 +1,8 @@
 import express from "express";
 import { WithId } from "mongodb";
-import { gamesDbApi } from "../../database";
-import { GameModel } from "../../../../shared/models/GameModels";
-import { sendWebsocketMessage } from "../../websocket";
+import { gamesDbApi } from "../database";
+import { GameModel } from "../../../shared/models/GameModels";
+import { sendWebsocketMessage } from "../websocket";
 
 const gamesApi = express.Router();
 
