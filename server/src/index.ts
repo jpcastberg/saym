@@ -1,12 +1,19 @@
 import app from "./app";
+import wsServer from "./websocket";
 import http from "http";
 
 const port = 3000;
 
 printRemoteIp();
 
-app.listen(port, () => {
+const server = app.listen(port, () => {
     console.log(`Example app listening on port ${port}`);
+});
+
+server.on("upgrade", (request, socket, head) => {
+    wsServer.handleUpgrade(request, socket, head, (socket) => {
+        wsServer.emit("connection", socket, request);
+    });
 });
 
 function printRemoteIp() {
@@ -14,8 +21,8 @@ function printRemoteIp() {
         "host": "api.ipify.org",
         "port": 80,
         "path": "/"
-    }, function(resp) {
-        resp.on("data", function(ip) {
+    }, function (resp) {
+        resp.on("data", function (ip) {
             console.log("public ip: " + ip);
         });
     });

@@ -2,6 +2,7 @@ import express from "express";
 import { WithId } from "mongodb";
 import { gamesDbApi } from "../../database";
 import { GameModel } from "../../../../shared/models/GameModels";
+import { sendWebsocketMessage } from "../../websocket";
 
 const gamesApi = express.Router();
 
@@ -41,9 +42,6 @@ gamesApi.post("/:gameId/turns", async (req, res) => {
     const { "locals": { userId } } = res;
     const currentGame = await gamesDbApi.get(gameId, userId);
     const sanitizedTurn = sanitize(turn);
-    let playerOneTurn: string | null = null;
-    let playerTwoTurn: string | null = null;
-    let isGameComplete: boolean | null = null;
 
     if (!currentGame) {
         res.status(404);
@@ -55,10 +53,17 @@ gamesApi.post("/:gameId/turns", async (req, res) => {
         return;
     }
 
+    let playerOneTurn: string | null = null;
+    let playerTwoTurn: string | null = null;
+    let isGameComplete: boolean | null = null;
+    let otherPlayerUserId: string | null = null;
+
     if (currentGame.playerOneUserId === userId) {
         playerOneTurn = sanitizedTurn;
+        otherPlayerUserId = currentGame.playerTwoUserId;
     } else if (currentGame.playerTwoUserId === userId) {
         playerTwoTurn = sanitizedTurn;
+        otherPlayerUserId = currentGame.playerOneUserId;
     }
 
     if ((playerOneTurn && !isValidTurn(playerOneTurn, currentGame.playerOneTurns, currentGame.playerTwoTurns)) ||
@@ -74,8 +79,13 @@ gamesApi.post("/:gameId/turns", async (req, res) => {
 
     await gamesDbApi.update(userId, gameId, null,
         playerOneTurn, playerTwoTurn, isGameComplete);
+
     const game = await gamesDbApi.get(gameId, userId);
     res.send(game);
+
+    if (otherPlayerUserId) {
+        sendWebsocketMessage(otherPlayerUserId, JSON.stringify(game));
+    }
 });
 
 gamesApi.post("/:gameId/complete", async (req, res) => { // manually mark game as complete
