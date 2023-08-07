@@ -89,7 +89,11 @@ class GamesDbApi {
         const db = await dbConnect();
         const games = db.collection<GameModel>("games");
         return games.find({
-            "$or": this.getPlayerFilterExpression(userId, false)
+            "$or": this.getPlayerFilterExpression(userId, false),
+        }, {
+            "sort": {
+                "lastUpdated": 1
+            }
         }).toArray();
     }
 
@@ -102,7 +106,8 @@ class GamesDbApi {
             "playerTwoUserId": playerTwoUserId,
             "playerOneTurns": [],
             "playerTwoTurns": [],
-            "isGameComplete": false
+            "isGameComplete": false,
+            "lastUpdate": new Date().toISOString()
         };
 
         return await games.insertOne(newGame);
@@ -144,6 +149,7 @@ class GamesDbApi {
             }
         }
 
+        $set.lastUpdate = new Date().toISOString();
         gameUpdates.$set = $set;
         const result = await games.findOneAndUpdate(filter, gameUpdates);
 

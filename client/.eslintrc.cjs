@@ -2,25 +2,18 @@
 require("@rushstack/eslint-patch/modern-module-resolution");
 
 module.exports = {
-    "root": true,
-    "extends": [
-        "plugin:vue/vue3-essential",
+    root: true,
+    extends: [
+        "plugin:vue/vue3-recommended",
         "eslint:recommended",
-        "@vue/eslint-config-typescript"
+        "@vue/eslint-config-typescript/recommended",
+        "@vue/eslint-config-prettier/skip-formatting"
     ],
-    "parserOptions": {
-        "ecmaVersion": "latest"
+    parserOptions: {
+        "ecmaVersion": "latest",
+        "project": "./tsconfig.json"
     },
-    "rules": {
-        "quotes": "error",
-        "semi": "error",
-        "quote-props": "error",
-        "indent": [
-            "error", 4
-        ],
-        "vue/script-indent": [
-            "error", 4
-        ],
-        "vue/html-self-closing": 1
+    rules: {
+        eqeqeq: "error"
     }
 };

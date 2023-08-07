@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useUserStore } from "@/stores/user";
-import { useAppStore } from "@/stores/app";
+import { useUserStore } from "../stores/user";
+import { useAppStore } from "../stores/app";
 const userStore = useUserStore();
 const appStore = useAppStore();
 userStore.initUser();

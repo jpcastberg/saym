@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRouter, RouterLink } from "vue-router";
-import { useAppStore } from "@/stores/app";
+import { useAppStore } from "../stores/app";
 
 const appStore = useAppStore();
 const router = useRouter();
@@ -19,6 +19,7 @@ function handleIconClick() {
             <v-icon icon="mdi-menu" />
         </v-app-bar-nav-icon>
         <v-app-bar-title>{{ appStore.appBarTitle }}</v-app-bar-title>
+        <v-btn v-if="router.currentRoute.value.name === 'home'" size="large">+ New</v-btn>
     </v-app-bar>
     <v-navigation-drawer v-model="appStore.isAppDrawerOpen" temporary>
         <RouterLink to="/">Home</RouterLink>

@@ -17,13 +17,16 @@ server.on("upgrade", (request, socket, head) => {
 });
 
 function printRemoteIp() {
-    http.get({
-        "host": "api.ipify.org",
-        "port": 80,
-        "path": "/"
-    }, function (resp) {
-        resp.on("data", function (ip) {
-            console.log("public ip: " + ip);
-        });
-    });
+    http.get(
+        {
+            host: "api.ipify.org",
+            port: 80,
+            path: "/",
+        },
+        function (resp) {
+            resp.on("data", function (ip) {
+                console.log("public ip: " + ip);
+            });
+        }
+    );
 }

@@ -5,4 +5,5 @@ export interface GameModel {
     playerOneTurns: string[];
     playerTwoTurns: string[];
     isGameComplete: boolean;
+    lastUpdate: string;
 }

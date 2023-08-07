@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RouterView } from "vue-router";
-import UsernameModal from "@/components/UsernameModal.vue";
-import AppBar from "@/components/AppBar.vue";
+import UsernameModal from "./components/UsernameModal.vue";
+import AppBar from "./components/AppBar.vue";
 </script>
 
 <template>
