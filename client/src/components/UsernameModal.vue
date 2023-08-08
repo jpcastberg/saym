@@ -11,7 +11,7 @@ function handleUsernameFormSubmit(event: SubmitEvent) {
 }
 
 function handleInput(event: InputEvent) {
-    const eventTarget = event?.target as HTMLInputElement;
+    const eventTarget = event.target as HTMLInputElement;
     appStore.usernameInput = eventTarget.value;
 }
 </script>
@@ -24,8 +24,8 @@ function handleInput(event: InputEvent) {
             </v-card-title>
             <v-form class="pa-5 d-flex flex-column align-center" @submit="handleUsernameFormSubmit">
                 <v-card-text class="w-100">
-                    <v-text-field v-model="appStore.usernameInput" label="What should we call you?" @input="handleInput"
-                        required />
+                    <v-text-field v-model="appStore.usernameInput" label="What should we call you?" required
+                        @input="handleInput" />
                 </v-card-text>
                 <v-card-actions class="py-0">
                     <v-btn size="large" type="submit" color="teal-darken-1" variant="elevated">

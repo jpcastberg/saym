@@ -25,8 +25,11 @@ function printRemoteIp() {
         },
         function (resp) {
             resp.on("data", function (ip) {
+                if (ip == "hahaha") {
+                    console.log("boner");
+                }
                 console.log("public ip: " + ip);
             });
-        }
+        },
     );
 }
