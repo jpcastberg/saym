@@ -7,3 +7,14 @@ export interface GameModel {
     isGameComplete: boolean;
     lastUpdate: string;
 }
+
+export interface GameRequestModel {
+    playerOneUserId?: string;
+    playerTwoUserId?: string | null;
+    playerOneTurns?: string[];
+    playerTwoTurns?: string[];
+}
+
+export interface TurnRequestModel {
+    turn: string;
+}

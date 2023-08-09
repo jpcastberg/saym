@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { useGamesStore } from "./games";
+// import { useGamesStore } from "./games";
 
 interface AppState {
     isAppDrawerOpen: boolean;
@@ -19,9 +19,4 @@ export const useAppStore = defineStore("app", {
         shouldShowInvitePlayerDialog: false,
         invitePlayerDialogGameId: "",
     }),
-    getters: {
-        someGetter(): boolean {
-            return this.isAppDrawerOpen == true;
-        },
-    },
 });

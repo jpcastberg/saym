@@ -9,7 +9,6 @@ import AppBar from "./components/AppBar.vue";
         <AppBar />
         <UsernameModal />
         <RouterView />
-        <div></div>
     </v-app>
 </template>
 

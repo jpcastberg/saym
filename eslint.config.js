@@ -1,43 +1,16 @@
-const { FlatCompat } = require("@eslint/eslintrc")
-const typescriptParser = require("@typescript-eslint/parser")
-const typescriptPlugin = require("@typescript-eslint/eslint-plugin")
 const vueParser = require("vue-eslint-parser")
+const typescriptPlugin = require("@typescript-eslint/eslint-plugin")
 const vuePlugin = require("eslint-plugin-vue")
-
-const compat = new FlatCompat({
-    baseDirectory: __dirname
-});
-
-const typescriptRules = {
-    ...typescriptPlugin.configs["eslint-recommended"].rules,
-    ...typescriptPlugin.configs["strict-type-checked"].rules,
-    ...typescriptPlugin.configs["stylistic-type-checked"].rules
-}
 
 module.exports = [
     {
-        files: ["**/*.ts"],
-        languageOptions: {
-            parser: typescriptParser,
-            parserOptions: {
-                project: ["./tsconfig.app.json", "./tsconfig.node.json"]
-            }
-        },
-        plugins: {
-            "@typescript-eslint": typescriptPlugin
-        },
-        rules: {
-            ...typescriptRules,
-            eqeqeq: "error"
-        }
-    },
-    {
-        files: ["**/*.vue"],
+        files: ["**/*.ts", "**/*.vue"],
         languageOptions: {
             parser: vueParser,
             parserOptions: {
                 parser: "@typescript-eslint/parser",
-                project: ["./tsconfig.app.json"],
+                tsconfigRootDir: __dirname,
+                project: ["./tsconfig.app.json", "./tsconfig.node.json"],
                 extraFileExtensions: [".vue"]
             }
         },
@@ -46,10 +19,18 @@ module.exports = [
             "@typescript-eslint": typescriptPlugin
         },
         rules: {
-            ...typescriptRules,
+            ...typescriptPlugin.configs["eslint-recommended"].rules,
+            ...typescriptPlugin.configs["strict-type-checked"].rules,
+            ...typescriptPlugin.configs["stylistic-type-checked"].rules,
             ...vuePlugin.configs["vue3-essential"].rules,
             ...vuePlugin.configs["vue3-strongly-recommended"].rules,
             ...vuePlugin.configs["vue3-recommended"].rules,
+            "vue/html-indent": "off",
+            "vue/max-attributes-per-line": "off",
+            "vue/singleline-html-element-content-newline": "off",
+            "vue/first-attribute-linebreak": "off",
+            "vue/html-closing-bracket-newline": "off",
+            "@typescript-eslint/no-misused-promises": ["error", { "checksVoidReturn": false }],
             eqeqeq: "error"
         }
     }

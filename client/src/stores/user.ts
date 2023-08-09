@@ -26,22 +26,22 @@ export const useUserStore = defineStore("user", {
             const userUpdateBody: UserUpdateModel = {
                 username: newUsername,
             };
-            const response: UserModel = await fetch("/api/users/me", {
+            const response = await fetch("/api/users/me", {
                 method: "put",
                 headers: {
                     "content-type": "application/json",
                 },
                 body: JSON.stringify(userUpdateBody),
-            }).then((response) => response.json());
+            }).then((response) => response.json()) as UserModel;
             this.username = response.username;
         },
         async initUser(): Promise<void> {
             if (this.isUserInitialized) {
                 return;
             }
-            const userResponse: UserModel = await fetch("/api/users/me").then(
+            const userResponse = await fetch("/api/users/me").then(
                 (response) => response.json(),
-            );
+            ) as UserModel;
             this.username = userResponse.username;
             this.userId = userResponse._id;
             this.isUserInitialized = true;

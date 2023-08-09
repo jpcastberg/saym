@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { useGamesStore } from "../stores/games";
+// import { useGamesStore } from "../stores/games";
 import { useAppStore } from "../stores/app";
 const appStore = useAppStore();
-const gamesStore = useGamesStore();
+// const gamesStore = useGamesStore();
 function invitePlayer(event: SubmitEvent) {
     event.preventDefault();
 }

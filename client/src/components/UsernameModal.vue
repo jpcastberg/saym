@@ -3,11 +3,11 @@ import { useUserStore } from "../stores/user";
 import { useAppStore } from "../stores/app";
 const userStore = useUserStore();
 const appStore = useAppStore();
-userStore.initUser();
+void userStore.initUser();
 
-function handleUsernameFormSubmit(event: SubmitEvent) {
+async function handleUsernameFormSubmit(event: SubmitEvent) {
     event.preventDefault();
-    userStore.updateUsername(appStore.usernameInput);
+    await userStore.updateUsername(appStore.usernameInput);
 }
 
 function handleInput(event: InputEvent) {

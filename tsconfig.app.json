@@ -13,14 +13,12 @@
         "strictPropertyInitialization": true,
         "target": "ESNext"
     },
-    "exclude": [
-        "src/**/__tests__/*"
-    ],
     "extends": "@vue/tsconfig/tsconfig.dom.json",
     "include": [
         "./client/env.d.ts",
         "./shared/models/*",
         "./client/src/**/*",
+        "./client/src/**/*.vue",
         "./client/vite.config.ts"
     ]
 }

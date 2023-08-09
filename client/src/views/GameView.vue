@@ -5,7 +5,7 @@ import { useRouter } from "vue-router";
 const router = useRouter();
 const { "currentRoute": { "value": { "params": { gameId } } } } = router;
 const gamesStore = useGamesStore();
-gamesStore.setActiveGame(String(gameId));
+await gamesStore.setActiveGame(String(gameId));
 const appStore = useAppStore();
 
 function handleTurnFormSubmit(event: SubmitEvent) {
@@ -13,7 +13,7 @@ function handleTurnFormSubmit(event: SubmitEvent) {
 }
 
 function handleInput(event: InputEvent) {
-    const eventTarget = event?.target as HTMLInputElement;
+    const eventTarget = event.target as HTMLInputElement;
     appStore.turnInput = eventTarget.value;
 }
 </script>
@@ -36,8 +36,8 @@ function handleInput(event: InputEvent) {
                 </div>
             </div>
             <v-form v-if="gamesStore.activeGame.isCurrentUsersTurn" class="pa-5 d-flex align-center justify-center"
-                @submit="">
-                <v-text-field variant="solo" label="What's your next word?" @input="handleInput" required />
+                @submit="handleTurnFormSubmit">
+                <v-text-field variant="solo" label="What's your next word?" required @input="handleInput" />
                 <v-btn class="ml-2" size="x-large" density="compact" icon="mdi-arrow-up-thick" />
             </v-form>
         </div>

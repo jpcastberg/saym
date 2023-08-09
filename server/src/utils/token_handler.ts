@@ -4,20 +4,25 @@ import crypto from "crypto";
 import { InsertOneResult } from "mongodb";
 import { tokensDbApi, usersDbApi, type TokenModel } from "../database";
 import { type UserModel } from "../../../shared/models/UserModels";
+import { ResponseLocals } from "../models/models";
 
-export default async (req: Request, res: Response, next: NextFunction) => {
+export default async (
+    req: Request,
+    res: Response<Record<string, never>, ResponseLocals>,
+    next: NextFunction,
+) => {
     const providedToken =
         cookie.parse(req.headers.cookie ?? "").token ||
         parseBearerToken(req.headers.authorization ?? "");
     if (providedToken) {
         console.log("token provided: " + providedToken);
         const existingToken: TokenModel | null = await tokensDbApi.get(
-            providedToken
+            providedToken,
         );
 
         if (existingToken) {
             console.log(
-                "provided token exists: " + JSON.stringify(existingToken)
+                "provided token exists: " + JSON.stringify(existingToken),
             );
             res.locals.token = existingToken.token;
             const existingUser = await usersDbApi.get(existingToken.user_id);
@@ -32,15 +37,13 @@ export default async (req: Request, res: Response, next: NextFunction) => {
             await usersDbApi.create("");
         const userId = userCreateResponse.insertedId;
 
-        if (userCreateResponse) {
-            res.locals.userId = userId;
-            const newAccessToken = createToken();
-            await tokensDbApi.create(newAccessToken, userId as string);
-            console.log(
-                `set new access token: ${newAccessToken}, for user: ${userId}`
-            );
-            res.locals.token = newAccessToken;
-        }
+        res.locals.userId = userId;
+        const newAccessToken = createToken();
+        await tokensDbApi.create(newAccessToken, userId);
+        console.log(
+            `set new access token: ${newAccessToken}, for user: ${userId}`,
+        );
+        res.locals.token = newAccessToken;
     }
 
     res.cookie("token", res.locals.token, {

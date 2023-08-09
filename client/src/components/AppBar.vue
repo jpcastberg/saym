@@ -4,7 +4,7 @@ import { useAppStore } from "../stores/app";
 
 const appStore = useAppStore();
 const router = useRouter();
-router.beforeResolve(to => {
+router.beforeResolve((to) => {
     appStore.appBarTitle = to.meta.appBarTitle as string;
 });
 
@@ -19,7 +19,9 @@ function handleIconClick() {
             <v-icon icon="mdi-menu" />
         </v-app-bar-nav-icon>
         <v-app-bar-title>{{ appStore.appBarTitle }}</v-app-bar-title>
-        <v-btn v-if="router.currentRoute.value.name === 'home'" size="large">+ New</v-btn>
+        <v-btn v-if="router.currentRoute.value.name === 'home'" size="large">
+            + New
+        </v-btn>
     </v-app-bar>
     <v-navigation-drawer v-model="appStore.isAppDrawerOpen" temporary>
         <RouterLink to="/">Home</RouterLink>

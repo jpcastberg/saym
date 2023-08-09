@@ -1,155 +1,196 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import { WithId } from "mongodb";
 import { gamesDbApi } from "../database";
-import { GameModel } from "../../../shared/models/GameModels";
+import {
+    GameModel,
+    GameRequestModel,
+    TurnRequestModel,
+} from "../../../shared/models/GameModels";
+import { ResponseLocals } from "../models/models";
 import { sendWebsocketMessage } from "../websocket";
 
 const gamesApi = express.Router();
 
-gamesApi.get("/", async (req, res) => {
-    const {
-        locals: { userId },
-    } = res;
-    const allGames = await gamesDbApi.getAll(userId);
-    res.send(allGames);
-});
+gamesApi.get(
+    "/",
+    async (req, res: Response<WithId<GameModel>[], ResponseLocals>) => {
+        const {
+            locals: { userId },
+        } = res;
+        const allGames = await gamesDbApi.getAll(userId);
+        res.send(allGames);
+    },
+);
 
-gamesApi.post("/", async (req, res) => {
-    const {
-        locals: { userId },
-    } = res;
-    const {
-        body: { playerOneUserId, playerTwoUserId },
-    } = req;
-    const newGameResponse = await gamesDbApi.create(
-        playerOneUserId || userId,
-        playerTwoUserId
-    );
-    const game = await gamesDbApi.get(
-        newGameResponse.insertedId.toString(),
-        userId
-    );
-    res.send(game);
-});
+gamesApi.post(
+    "/",
+    async (
+        req: Request<
+            Record<string, never>,
+            WithId<GameModel>,
+            GameRequestModel
+        >,
+        res: Response<WithId<GameModel>, ResponseLocals>,
+    ) => {
+        const {
+            locals: { userId },
+        } = res;
+        const {
+            body: { playerOneUserId, playerTwoUserId },
+        } = req;
+        const newGameResponse = await gamesDbApi.create(
+            playerOneUserId ?? userId,
+            playerTwoUserId ?? "",
+        );
+        const game = await gamesDbApi.get(
+            newGameResponse.insertedId.toString(),
+            userId,
+        );
 
-gamesApi.get("/:gameId", async (req, res) => {
-    const {
-        params: { gameId },
-    } = req;
-    const {
-        locals: { userId },
-    } = res;
-    const foundGame = await gamesDbApi.get(gameId, userId);
-    console.log(
-        `found game with id: ${gameId} associated w user ${userId}: ${JSON.stringify(
-            foundGame
-        )}`
-    );
-    res.send(foundGame);
-});
+        if (game) {
+            res.send(game);
+        } else {
+            res.status(500);
+        }
+    },
+);
 
-gamesApi.post("/:gameId/join", async (req, res) => {
-    const {
-        params: { gameId },
-    } = req;
-    const {
-        locals: { userId },
-    } = res;
-    // todo: 400, game already joined
-    gamesDbApi.update(userId, gameId, userId, null, null, null);
-    const joinedGame = await gamesDbApi.get(gameId, userId);
-    res.send(joinedGame);
-});
+gamesApi.get(
+    "/:gameId",
+    async (req, res: Response<WithId<GameModel>, ResponseLocals>) => {
+        const {
+            params: { gameId },
+        } = req;
+        const {
+            locals: { userId },
+        } = res;
+        const foundGame = await gamesDbApi.get(gameId, userId);
+        console.log(
+            `found game with id: ${gameId} associated w user ${userId}: ${JSON.stringify(
+                foundGame,
+            )}`,
+        );
+        res.send(foundGame ?? void 0);
+    },
+);
 
-gamesApi.post("/:gameId/turns", async (req, res) => {
-    console.log(`called /turns`);
-    const {
-        params: { gameId },
-        body: { turn },
-    } = req;
-    const {
-        locals: { userId },
-    } = res;
-    const currentGame = await gamesDbApi.get(gameId, userId);
-    const sanitizedTurn = sanitize(turn);
+gamesApi.post(
+    "/:gameId/join",
+    async (req, res: Response<WithId<GameModel>, ResponseLocals>) => {
+        const {
+            params: { gameId },
+        } = req;
+        const {
+            locals: { userId },
+        } = res;
 
-    if (!currentGame) {
-        res.status(404);
-        res.send();
-        return;
-    } else if (!sanitizedTurn || currentGame.isGameComplete) {
-        res.status(400);
-        res.send();
-        return;
-    }
+        await gamesDbApi.update(userId, gameId, userId, null, null, null);
+        const joinedGame = await gamesDbApi.get(gameId, userId);
 
-    let playerOneTurn: string | null = null;
-    let playerTwoTurn: string | null = null;
-    let isGameComplete: boolean | null = null;
-    let otherPlayerUserId: string | null = null;
+        if (joinedGame) {
+            res.send(joinedGame);
+        } else {
+            res.status(404).send();
+        }
+    },
+);
 
-    if (currentGame.playerOneUserId === userId) {
-        playerOneTurn = sanitizedTurn;
-        otherPlayerUserId = currentGame.playerTwoUserId;
-    } else if (currentGame.playerTwoUserId === userId) {
-        playerTwoTurn = sanitizedTurn;
-        otherPlayerUserId = currentGame.playerOneUserId;
-    }
+gamesApi.post(
+    "/:gameId/turns",
+    async (
+        req: Request<
+            Record<string, never>,
+            WithId<GameModel>,
+            TurnRequestModel
+        >,
+        res: Response<WithId<GameModel>, ResponseLocals>,
+    ) => {
+        console.log(`called /turns`);
+        const {
+            params: { gameId },
+            body: { turn },
+        } = req;
+        const {
+            locals: { userId },
+        } = res;
+        const currentGame = await gamesDbApi.get(gameId, userId);
+        const sanitizedTurn = sanitize(turn);
 
-    if (
-        (playerOneTurn &&
-            !isValidTurn(
-                playerOneTurn,
-                currentGame.playerOneTurns,
-                currentGame.playerTwoTurns
-            )) ??
-        (playerTwoTurn &&
-            !isValidTurn(
-                playerTwoTurn,
-                currentGame.playerTwoTurns,
-                currentGame.playerOneTurns
-            ))
-    ) {
-        res.status(400);
-        res.send();
-    }
+        if (!currentGame) {
+            res.status(404).send();
+            return;
+        } else if (!sanitizedTurn || currentGame.isGameComplete) {
+            res.status(400).send();
+            return;
+        }
 
-    if (
-        (playerOneTurn &&
-            isWinningTurn(
-                playerOneTurn,
-                currentGame.playerOneTurns,
-                currentGame.playerTwoTurns
-            )) ??
-        (playerTwoTurn &&
-            isWinningTurn(
-                playerTwoTurn,
-                currentGame.playerTwoTurns,
-                currentGame.playerOneTurns
-            ))
-    ) {
-        isGameComplete = true;
-    }
+        let playerOneTurn: string | null = null;
+        let playerTwoTurn: string | null = null;
+        let isGameComplete: boolean | null = null;
+        let otherPlayerUserId: string | null = null;
 
-    await gamesDbApi.update(
-        userId,
-        gameId,
-        null,
-        playerOneTurn,
-        playerTwoTurn,
-        isGameComplete
-    );
+        if (currentGame.playerOneUserId === userId) {
+            playerOneTurn = sanitizedTurn;
+            otherPlayerUserId = currentGame.playerTwoUserId;
+        } else if (currentGame.playerTwoUserId === userId) {
+            playerTwoTurn = sanitizedTurn;
+            otherPlayerUserId = currentGame.playerOneUserId;
+        }
 
-    const game = await gamesDbApi.get(gameId, userId);
-    res.send(game);
+        if (
+            (playerOneTurn &&
+                !isValidTurn(
+                    playerOneTurn,
+                    currentGame.playerOneTurns,
+                    currentGame.playerTwoTurns,
+                )) ??
+            (playerTwoTurn &&
+                !isValidTurn(
+                    playerTwoTurn,
+                    currentGame.playerTwoTurns,
+                    currentGame.playerOneTurns,
+                ))
+        ) {
+            res.status(400);
+            res.send();
+        }
 
-    if (otherPlayerUserId) {
-        sendWebsocketMessage(otherPlayerUserId, JSON.stringify(game));
-    }
-});
+        if (
+            (playerOneTurn &&
+                isWinningTurn(
+                    playerOneTurn,
+                    currentGame.playerOneTurns,
+                    currentGame.playerTwoTurns,
+                )) ??
+            (playerTwoTurn &&
+                isWinningTurn(
+                    playerTwoTurn,
+                    currentGame.playerTwoTurns,
+                    currentGame.playerOneTurns,
+                ))
+        ) {
+            isGameComplete = true;
+        }
 
-gamesApi.post("/:gameId/complete", async (req, res) => {
-    // manually mark game as complete
+        await gamesDbApi.update(
+            userId,
+            gameId,
+            null,
+            playerOneTurn,
+            playerTwoTurn,
+            isGameComplete,
+        );
+
+        const game = await gamesDbApi.get(gameId, userId);
+        res.send(game ?? void 0);
+
+        if (otherPlayerUserId) {
+            sendWebsocketMessage(otherPlayerUserId, JSON.stringify(game));
+        }
+    },
+);
+
+gamesApi.post("/:gameId/complete", async (req, res: Response<WithId<GameModel>, ResponseLocals>) => {
     const {
         params: { gameId },
     } = req;
@@ -160,7 +201,7 @@ gamesApi.post("/:gameId/complete", async (req, res) => {
     let dbResponse: WithId<GameModel> | null = null;
 
     if (!currentGame) {
-        // 404
+        res.status(404).send();
         return;
     }
 
@@ -173,18 +214,12 @@ gamesApi.post("/:gameId/complete", async (req, res) => {
             null,
             null,
             null,
-            true
+            true,
         );
+        res.send(dbResponse ?? void 0);
     } else {
-        // 400
+        res.status(400).send();
     }
-
-    res.send(dbResponse);
-});
-
-gamesApi.post("/:gameId/notifications", (req, res) => {
-    // post word
-    res.send("Hello World!");
 });
 
 function sanitize(turn: string): string {
@@ -194,7 +229,7 @@ function sanitize(turn: string): string {
 function isValidTurn(
     turn: string,
     currentPlayerTurns: string[],
-    otherPlayerTurns: string[]
+    otherPlayerTurns: string[],
 ): boolean {
     // todo: regex validation?
     return (
@@ -207,7 +242,7 @@ function isValidTurn(
 function isWinningTurn(
     turn: string,
     currentPlayerTurns: string[],
-    otherPlayerTurns: string[]
+    otherPlayerTurns: string[],
 ): boolean {
     return (
         currentPlayerTurns.length === otherPlayerTurns.length - 1 &&

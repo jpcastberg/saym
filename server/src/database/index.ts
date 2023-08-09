@@ -158,6 +158,9 @@ class GamesDbApi {
 
         if (playerTwoUserId) {
             $set.playerTwoUserId = playerTwoUserId;
+            filter.playerTwoUserId = {
+                $eq: null,
+            };
             console.log("set player 2 user id");
         }
 

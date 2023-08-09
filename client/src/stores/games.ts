@@ -15,9 +15,7 @@ interface GamesState {
     activeGame: ComputedGameModel | undefined;
 }
 
-interface UsernameCache {
-    [key: string]: string;
-}
+type UsernameCache = Record<string, string>;
 
 const usernameCache: UsernameCache = {};
 
@@ -52,7 +50,7 @@ export const useGamesStore = defineStore("games", {
             }
         },
         getGameById(gameId: string) {
-            return this.currentGames.find((game) => game._id == gameId);
+            return this.currentGames.find((game) => game._id === gameId);
         },
         async setActiveGame(gameId: string) {
             if (!this.areGamesInitialized) {
