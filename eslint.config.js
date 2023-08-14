@@ -1,6 +1,7 @@
 const vueParser = require("vue-eslint-parser")
 const typescriptPlugin = require("@typescript-eslint/eslint-plugin")
 const vuePlugin = require("eslint-plugin-vue")
+const importPlugin = require("eslint-plugin-import")
 
 module.exports = [
     {
@@ -16,7 +17,8 @@ module.exports = [
         },
         plugins: {
             vue: vuePlugin,
-            "@typescript-eslint": typescriptPlugin
+            "@typescript-eslint": typescriptPlugin,
+            import: importPlugin
         },
         rules: {
             ...typescriptPlugin.configs["eslint-recommended"].rules,
@@ -31,7 +33,9 @@ module.exports = [
             "vue/first-attribute-linebreak": "off",
             "vue/html-closing-bracket-newline": "off",
             "@typescript-eslint/no-misused-promises": ["error", { "checksVoidReturn": false }],
-            eqeqeq: "error"
+            eqeqeq: "error",
+            "import/order": "error",
+            "import/consistent-type-specifier-style": ["error", "prefer-inline"]
         }
     }
 ]
