@@ -1,6 +1,6 @@
+import crypto from "crypto";
 import { Request, Response, NextFunction } from "express";
 import cookie from "cookie";
-import crypto from "crypto";
 import { InsertOneResult } from "mongodb";
 import { tokensDbApi, usersDbApi, type TokenModel } from "../database";
 import { type UserModel } from "../../../shared/models/UserModels";
