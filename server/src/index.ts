@@ -1,6 +1,6 @@
+import http from "http";
 import app from "./app";
 import wsServer from "./websocket";
-import http from "http";
 
 const port = 3000;
 

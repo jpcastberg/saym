@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
+import  { type Component } from "vue";
 import ActiveGamesView from "../views/ActiveGamesView.vue";
 import GameView from "../views/GameView.vue";
-import type { Component } from "vue";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
