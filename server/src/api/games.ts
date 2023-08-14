@@ -1,10 +1,11 @@
 import express, { Request, Response } from "express";
-import { WithId } from "mongodb";
 import { gamesDbApi } from "../database";
 import {
-    GameModel,
-    GameRequestModel,
-    TurnRequestModel,
+    AllGamesResponseModel,
+    GameResponseModel,
+    GameUpdateModel,
+    GameWebsocketUpdateModel,
+    TurnCreateModel,
 } from "../../../shared/models/GameModels";
 import { ResponseLocals } from "../models/models";
 import { sendWebsocketMessage } from "../websocket";
@@ -13,12 +14,22 @@ const gamesApi = express.Router();
 
 gamesApi.get(
     "/",
-    async (req, res: Response<WithId<GameModel>[], ResponseLocals>) => {
+    async (req, res: Response<AllGamesResponseModel, ResponseLocals>) => {
         const {
             locals: { userId },
         } = res;
         const allGames = await gamesDbApi.getAll(userId);
-        res.send(allGames);
+        const response: AllGamesResponseModel = {
+            currentGames: [],
+            finishedGames: [],
+        };
+
+        for (const game of allGames) {
+            game.isGameComplete
+                ? response.finishedGames.push(game)
+                : response.currentGames.push(game);
+        }
+        res.send(response);
     },
 );
 
@@ -26,11 +37,11 @@ gamesApi.post(
     "/",
     async (
         req: Request<
-            Record<string, never>,
-            WithId<GameModel>,
-            GameRequestModel
+            Record<string, string>,
+            GameResponseModel,
+            GameUpdateModel
         >,
-        res: Response<WithId<GameModel>, ResponseLocals>,
+        res: Response<GameResponseModel, ResponseLocals>,
     ) => {
         const {
             locals: { userId },
@@ -40,24 +51,16 @@ gamesApi.post(
         } = req;
         const newGameResponse = await gamesDbApi.create(
             playerOneUserId ?? userId,
-            playerTwoUserId ?? "",
-        );
-        const game = await gamesDbApi.get(
-            newGameResponse.insertedId.toString(),
-            userId,
+            playerTwoUserId ?? null,
         );
 
-        if (game) {
-            res.send(game);
-        } else {
-            res.status(500);
-        }
+        res.send(newGameResponse);
     },
 );
 
 gamesApi.get(
     "/:gameId",
-    async (req, res: Response<WithId<GameModel>, ResponseLocals>) => {
+    async (req, res: Response<GameResponseModel, ResponseLocals>) => {
         const {
             params: { gameId },
         } = req;
@@ -76,7 +79,7 @@ gamesApi.get(
 
 gamesApi.post(
     "/:gameId/join",
-    async (req, res: Response<WithId<GameModel>, ResponseLocals>) => {
+    async (req, res: Response<GameResponseModel, ResponseLocals>) => {
         const {
             params: { gameId },
         } = req;
@@ -84,8 +87,15 @@ gamesApi.post(
             locals: { userId },
         } = res;
 
-        await gamesDbApi.update(userId, gameId, userId, null, null, null);
-        const joinedGame = await gamesDbApi.get(gameId, userId);
+        const joinedGame = await gamesDbApi.update(
+            userId,
+            gameId,
+            userId,
+            null,
+            null,
+            null,
+            null,
+        );
 
         if (joinedGame) {
             res.send(joinedGame);
@@ -99,13 +109,12 @@ gamesApi.post(
     "/:gameId/turns",
     async (
         req: Request<
-            Record<string, never>,
-            WithId<GameModel>,
-            TurnRequestModel
+            Record<string, string>,
+            GameResponseModel,
+            TurnCreateModel
         >,
-        res: Response<WithId<GameModel>, ResponseLocals>,
+        res: Response<GameResponseModel, ResponseLocals>,
     ) => {
-        console.log(`called /turns`);
         const {
             params: { gameId },
             body: { turn },
@@ -129,12 +138,12 @@ gamesApi.post(
         let isGameComplete: boolean | null = null;
         let otherPlayerUserId: string | null = null;
 
-        if (currentGame.playerOneUserId === userId) {
+        if (currentGame.playerOne?._id === userId) {
             playerOneTurn = sanitizedTurn;
-            otherPlayerUserId = currentGame.playerTwoUserId;
-        } else if (currentGame.playerTwoUserId === userId) {
+            otherPlayerUserId = currentGame.playerTwo?._id ?? null;
+        } else if (currentGame.playerTwo?._id === userId) {
             playerTwoTurn = sanitizedTurn;
-            otherPlayerUserId = currentGame.playerOneUserId;
+            otherPlayerUserId = currentGame.playerOne?._id ?? null;
         }
 
         if (
@@ -172,55 +181,95 @@ gamesApi.post(
             isGameComplete = true;
         }
 
-        await gamesDbApi.update(
+        const updatedGame = await gamesDbApi.update(
             userId,
             gameId,
             null,
             playerOneTurn,
             playerTwoTurn,
+            null,
             isGameComplete,
         );
 
-        const game = await gamesDbApi.get(gameId, userId);
-        res.send(game ?? void 0);
+        res.send(updatedGame ?? void 0);
 
         if (otherPlayerUserId) {
-            sendWebsocketMessage(otherPlayerUserId, JSON.stringify(game));
+            console.log();
+            sendWebsocketMessage(
+                otherPlayerUserId,
+                JSON.stringify({
+                    eventType: "gameUpdate",
+                    data: updatedGame,
+                } as GameWebsocketUpdateModel),
+            );
         }
     },
 );
 
-gamesApi.post("/:gameId/complete", async (req, res: Response<WithId<GameModel>, ResponseLocals>) => {
-    const {
-        params: { gameId },
-    } = req;
-    const {
-        locals: { userId },
-    } = res;
-    const currentGame = await gamesDbApi.get(gameId, userId);
-    let dbResponse: WithId<GameModel> | null = null;
+gamesApi.post(
+    "/:gameId/complete",
+    async (req, res: Response<GameResponseModel, ResponseLocals>) => {
+        const {
+            params: { gameId },
+        } = req;
+        const {
+            locals: { userId },
+        } = res;
+        const currentGame = await gamesDbApi.get(gameId, userId);
 
-    if (!currentGame) {
-        res.status(404).send();
-        return;
-    }
+        if (!currentGame) {
+            res.status(404).send();
+            return;
+        }
 
-    if (
-        currentGame.playerOneTurns.length === currentGame.playerTwoTurns.length
-    ) {
-        dbResponse = await gamesDbApi.update(
+        if (
+            currentGame.playerOneTurns.length ===
+            currentGame.playerTwoTurns.length
+        ) {
+            const dbResponse = await gamesDbApi.update(
+                userId,
+                gameId,
+                null,
+                null,
+                null,
+                null,
+                true,
+            );
+            res.send(dbResponse ?? void 0);
+        } else {
+            res.status(400).send();
+        }
+    },
+);
+
+gamesApi.post(
+    "/:gameId/invite",
+    async (req, res: Response<GameResponseModel, ResponseLocals>) => {
+        const {
+            params: { gameId },
+        } = req;
+        const {
+            locals: { userId },
+        } = res;
+        const currentGame = await gamesDbApi.get(gameId, userId);
+
+        if (!currentGame) {
+            res.status(404).send();
+            return;
+        }
+
+        const dbResponse = await gamesDbApi.update(
             userId,
             gameId,
             null,
             null,
             null,
-            true,
+            false,
+            null,
         );
         res.send(dbResponse ?? void 0);
-    } else {
-        res.status(400).send();
-    }
-});
+    },
+);
 
 function sanitize(turn: string): string {
     return turn.replace(/\s+/, " ").replace(/[^0-9a-z\s]/gi, "");
