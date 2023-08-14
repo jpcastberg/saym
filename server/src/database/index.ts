@@ -1,4 +1,5 @@
 import {
+    Document,
     Filter,
     MongoClient,
     MongoClientOptions,
@@ -7,7 +8,10 @@ import {
 } from "mongodb";
 import generateId from "../utils/id_generator";
 import { type UserModel } from "../../../shared/models/UserModels";
-import { type GameModel } from "../../../shared/models/GameModels";
+import {
+    type GameDbModel,
+    type GameResponseModel,
+} from "../../../shared/models/GameModels";
 
 const mongoUri: string =
     "mongodb+srv://" +
@@ -82,53 +86,44 @@ class UsersDbApi {
             _id: userId,
         };
 
-        const result = await users.findOneAndUpdate(filter, updatedUser);
+        const result = await users.findOneAndUpdate(filter, updatedUser, {
+            returnDocument: "after",
+        });
 
         return result.value;
     }
 }
 
 class GamesDbApi {
-    async get(gameId: string, userId: string) {
-        const db = await dbConnect();
-        const games = db.collection<GameModel>("games");
-        return await games.findOne({
-            _id: gameId,
-            $or: this.getPlayerFilterExpression(userId, false),
-        });
+    async get(
+        gameId: string,
+        userId: string,
+    ): Promise<GameResponseModel | undefined> {
+        const matches = await this.getMatches(gameId, userId, false);
+        return matches[0];
     }
 
-    async getAll(userId: string) {
-        const db = await dbConnect();
-        const games = db.collection<GameModel>("games");
-        return games
-            .find(
-                {
-                    $or: this.getPlayerFilterExpression(userId, false),
-                },
-                {
-                    sort: {
-                        lastUpdated: 1,
-                    },
-                },
-            )
-            .toArray();
+    async getAll(userId: string): Promise<GameResponseModel[]> {
+        return await this.getMatches(null, userId, false);
     }
 
-    async create(playerOneUserId: string, playerTwoUserId: string) {
+    async create(playerOneUserId: string, playerTwoUserId: string | null) {
         const db = await dbConnect();
-        const games = db.collection<GameModel>("games");
-        const newGame: GameModel = {
-            _id: generateId(),
+        const games = db.collection<GameDbModel>("games");
+        const newGameId = generateId();
+        const newGame: GameDbModel = {
+            _id: newGameId,
             playerOneUserId: playerOneUserId,
             playerTwoUserId: playerTwoUserId,
             playerOneTurns: [],
             playerTwoTurns: [],
             isGameComplete: false,
+            needToInvitePlayer: !playerTwoUserId,
             lastUpdate: new Date().toISOString(),
         };
 
-        return await games.insertOne(newGame);
+        await games.insertOne(newGame);
+        return this.get(newGameId, playerOneUserId);
     }
 
     async update(
@@ -137,31 +132,38 @@ class GamesDbApi {
         playerTwoUserId: string | null,
         playerOneTurn: string | null,
         playerTwoTurn: string | null,
+        needToInvitePlayer: boolean | null,
         isGameComplete: boolean | null,
     ) {
         const db = await dbConnect();
-        const games = db.collection<GameModel>("games");
-        const filter: Filter<GameModel> = {
+        const games = db.collection<GameDbModel>("games");
+        const filter: Filter<GameDbModel> = {
             _id: gameId,
-            $or: this.getPlayerFilterExpression(
-                userId,
-                Boolean(playerTwoUserId),
-            ),
+            $or: getPlayerFilterExpression(userId, Boolean(playerTwoUserId)),
         };
-        interface GameUpdateFilterSet {
+
+        interface SetModel {
             playerTwoUserId?: string;
             isGameComplete?: boolean;
-            lastUpdate?: string;
+            needToInvitePlayer?: boolean;
+            lastUpdate: string;
         }
-        const gameUpdates: UpdateFilter<GameModel> = {};
-        const $set: GameUpdateFilterSet = {};
+
+        const gameUpdates: UpdateFilter<GameDbModel> = {};
+        const $set: SetModel = {
+            lastUpdate: new Date().toISOString(),
+        };
+
+        if (needToInvitePlayer === false) {
+            $set.needToInvitePlayer = false;
+        }
 
         if (playerTwoUserId) {
             $set.playerTwoUserId = playerTwoUserId;
+            $set.needToInvitePlayer = false;
             filter.playerTwoUserId = {
                 $eq: null,
             };
-            console.log("set player 2 user id");
         }
 
         if (playerOneTurn) {
@@ -173,31 +175,94 @@ class GamesDbApi {
                 playerTwoTurns: playerTwoTurn,
             };
 
-            if (isGameComplete) {
-                $set.isGameComplete = isGameComplete;
-            }
+            $set.isGameComplete = Boolean(isGameComplete);
         }
 
-        $set.lastUpdate = new Date().toISOString();
-        gameUpdates.$set = {};
-        const result = await games.findOneAndUpdate(filter, gameUpdates);
+        gameUpdates.$set = {
+            ...$set,
+        };
 
-        return result.value;
+        await games.updateOne(filter, gameUpdates);
+
+        return await this.get(gameId, userId);
     }
 
-    private getPlayerFilterExpression = function (
+    private async getMatches(
+        gameId: string | null,
         userId: string,
-        isNewPlayer: boolean,
+        isPlayerTwoJoining: boolean | null,
     ) {
-        return [
-            {
-                playerOneUserId: userId,
-            },
-            {
-                playerTwoUserId: isNewPlayer ? null : userId,
-            },
-        ];
-    };
+        const db = await dbConnect();
+        const games = db.collection<GameDbModel>("games");
+        const matchAggregation: Document = {
+            $or: getPlayerFilterExpression(userId, isPlayerTwoJoining),
+        };
+
+        if (gameId) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            matchAggregation._id = gameId;
+        }
+        return (await games
+            .aggregate([
+                {
+                    $match: matchAggregation,
+                },
+                {
+                    $lookup: {
+                        from: "users",
+                        localField: "playerOneUserId",
+                        foreignField: "_id",
+                        as: "playerOneArr",
+                    },
+                },
+                {
+                    $lookup: {
+                        from: "users",
+                        localField: "playerTwoUserId",
+                        foreignField: "_id",
+                        as: "playerTwoArr",
+                    },
+                },
+                {
+                    $addFields: {
+                        playerOne: {
+                            $arrayElemAt: ["$playerOneArr", 0],
+                        },
+                        playerTwo: {
+                            $arrayElemAt: ["$playerTwoArr", 0],
+                        },
+                    },
+                },
+                {
+                    $unset: [
+                        "playerOneUserId",
+                        "playerTwoUserId",
+                        "playerOneArr",
+                        "playerTwoArr",
+                    ],
+                },
+                {
+                    $sort: {
+                        lastUpdate: -1,
+                    },
+                },
+            ])
+            .toArray()) as GameResponseModel[];
+    }
+}
+
+function getPlayerFilterExpression(
+    userId: string,
+    isPlayerTwoJoining: boolean | null,
+) {
+    return [
+        {
+            playerOneUserId: userId,
+        },
+        {
+            playerTwoUserId: isPlayerTwoJoining ? null : userId,
+        },
+    ];
 }
 
 export const tokensDbApi = new TokensDbApi();
