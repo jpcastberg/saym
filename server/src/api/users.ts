@@ -9,7 +9,6 @@ const usersApi = express.Router();
 usersApi.get(
     "/me",
     async (req, res: Response<WithId<UserModel>, ResponseLocals>) => {
-        console.log("GET /api/users/me");
         const {
             locals: { userId },
         } = res;
@@ -25,7 +24,11 @@ usersApi.get(
 usersApi.put(
     "/me",
     async (
-        req: Request<Record<string, never>, WithId<UserModel>, UserUpdateModel>,
+        req: Request<
+            Record<string, string>,
+            WithId<UserModel>,
+            UserUpdateModel
+        >,
         res: Response<WithId<UserModel>, ResponseLocals>,
     ) => {
         const {
@@ -33,8 +36,7 @@ usersApi.put(
         } = res;
         const userUpdateBody: UserUpdateModel = req.body;
         const username: string = userUpdateBody.username;
-        await usersDbApi.update(userId, username);
-        const dbResponse = await usersDbApi.get(userId);
+        const dbResponse = await usersDbApi.update(userId, username);
 
         if (dbResponse) {
             res.send(dbResponse);
@@ -43,11 +45,5 @@ usersApi.put(
         }
     },
 );
-
-// usersApi.get("/:userId", async (req, res) => {
-//     const { "locals": { userId } } = res;
-//     const dbResponse = await gamesDbApi.getAll(userId);
-//     res.send(dbResponse);
-// });
 
 export default usersApi;
