@@ -1,28 +1,38 @@
+import { Server } from "http";
+import { AddressInfo } from "net";
 import { describe, test, expect, beforeEach, afterEach } from "@jest/globals";
 import request, { Response } from "supertest";
+// import WebSocket from "ws";
 import app from "../src/app";
-import { dbConnect, dbClose } from "../src/database";
-import { GameModel } from "../../shared/models/GameModels";
+import { dbClose } from "../src/database";
+import { GameResponseModel } from "../../shared/models/GameModels";
 
 interface ApiResponse extends Response {
     header: Record<string, string>;
 }
 
 interface GameResponse extends ApiResponse {
-    body: GameModel;
+    body: GameResponseModel;
 }
 
-beforeEach(async () => {
-    return await dbConnect();
+let runningApp: Server;
+
+beforeEach(() => {
+    runningApp = app.listen(0, function () {
+        // @ts-expect-error - type of address will always be AddressInfo in this case
+        const address: AddressInfo = runningApp.address();
+        console.log(`App is listening on port ${address.port}`);
+    });
 });
 
 afterEach(async () => {
+    runningApp.close();
     await dbClose();
 });
 
 describe("Test the root path", () => {
     test("It should respond to the GET method", (done) => {
-        void request(app)
+        void request(runningApp)
             .get("/")
             .then((response) => {
                 console.log("response: " + JSON.stringify(response));
@@ -34,7 +44,7 @@ describe("Test the root path", () => {
 
 describe("Access Tokens", () => {
     test("It should provide a new access token if one is not passed", (done) => {
-        void request(app)
+        void request(runningApp)
             .get("/")
             .then((response) => {
                 const cookieHeader = getCookieHeader(response);
@@ -48,12 +58,12 @@ describe("Access Tokens", () => {
     test("It should return the same access token if one is passed", (done) => {
         let expectedHeader: string;
 
-        void request(app)
+        void request(runningApp)
             .get("/")
             .then((response) => {
                 const cookieHeader = getCookieHeader(response);
                 expectedHeader = cookieHeader;
-                return request(app)
+                return request(runningApp)
                     .get("/")
                     .set("Cookie", `token=${getToken(cookieHeader)}`);
             })
@@ -66,53 +76,58 @@ describe("Access Tokens", () => {
 
 describe("Games", () => {
     test("It should allow a user to create a new game", (done) => {
-        void request(app)
+        void request(runningApp)
             .post("/api/games")
             .then((response: GameResponse) => {
-                const { body } = response;
+                const { body: newGame } = response;
 
-                expect(typeof body._id).toBe("string");
-                expect(body._id).toBeTruthy();
+                expect(typeof newGame._id).toBe("string");
+                expect(newGame._id).toBeTruthy();
 
-                expect(typeof body.playerOneUserId).toBe("string");
-                expect(body.playerOneUserId).toBeTruthy();
+                expect(newGame).toHaveProperty("playerOne");
+                expect(newGame.playerOne).toHaveProperty("_id");
+                expect(newGame.playerOne).toHaveProperty("username");
+                expect(newGame.playerTwo).toBe(undefined);
 
-                expect(body.playerTwoUserId).toBeNull();
+                expect(Array.isArray(newGame.playerOneTurns)).toBe(true);
+                expect(newGame.playerOneTurns).toHaveLength(0);
 
-                expect(Array.isArray(body.playerOneTurns)).toBe(true);
-                expect(body.playerOneTurns).toHaveLength(0);
+                expect(Array.isArray(newGame.playerTwoTurns)).toBe(true);
+                expect(newGame.playerTwoTurns).toHaveLength(0);
 
-                expect(Array.isArray(body.playerTwoTurns)).toBe(true);
-                expect(body.playerTwoTurns).toHaveLength(0);
-
-                expect(body.isGameComplete).toBe(false);
+                expect(newGame.isGameComplete).toBe(false);
 
                 done();
             });
     });
 
     test("It should allow a user to join an existing game", (done) => {
-        void request(app)
+        void request(runningApp)
             .post("/api/games")
             .then((response: GameResponse) => {
                 const { body: newGame } = response;
 
-                void request(app)
+                void request(runningApp)
                     .post(`/api/games/${newGame._id}/join`)
                     .then((response: GameResponse) => {
                         const { body: existingGame } = response;
 
-                        expect(typeof existingGame.playerOneUserId).toBe(
-                            "string",
-                        );
-                        expect(existingGame.playerOneUserId).toBeTruthy();
+                        console.log("existing game:", existingGame);
 
-                        expect(typeof existingGame.playerTwoUserId).toBe(
-                            "string",
+                        expect(existingGame).toHaveProperty("playerOne");
+                        expect(existingGame.playerOne).toHaveProperty("_id");
+                        expect(existingGame.playerOne).toHaveProperty(
+                            "username",
                         );
-                        expect(existingGame.playerTwoUserId).toBeTruthy();
-                        expect(existingGame.playerTwoUserId).not.toEqual(
-                            existingGame.playerOneUserId,
+
+                        expect(existingGame).toHaveProperty("playerTwo");
+                        expect(existingGame.playerTwo).toHaveProperty("_id");
+                        expect(existingGame.playerTwo).toHaveProperty(
+                            "username",
+                        );
+
+                        expect(existingGame.playerTwo?._id).not.toEqual(
+                            existingGame.playerOne?._id,
                         );
 
                         expect(Array.isArray(existingGame.playerOneTurns)).toBe(
@@ -136,33 +151,69 @@ describe("Games", () => {
         let playerOneToken: string | undefined;
         let playerTwoToken: string | undefined;
         let gameId: string;
-        let game: GameModel;
+        let game: GameResponseModel;
 
-        void request(app)
+        void request(runningApp)
             .post("/api/games")
             .then((response: GameResponse) => {
                 const { body } = response;
                 playerOneToken = getToken(getCookieHeader(response));
                 game = body;
+                gameId = game._id;
             })
             .then(async () => {
-                const response: GameResponse = await request(app).post(
+                const response: GameResponse = await request(runningApp).post(
                     `/api/games/${game._id}/join`,
                 );
                 game = response.body;
                 playerTwoToken = getToken(getCookieHeader(response));
             })
-            .then(() => {
-                return request(app)
+            .then(async () => {
+                const turn = "turn 1";
+                const response: GameResponse = await request(runningApp)
                     .post(`/api/games/${gameId}/turns`)
                     .set("Cookie", `token=${playerOneToken}`)
-                    .send({ turn: "turn 1" });
+                    .send({ turn });
+                game = response.body;
+                expect(game.playerOneTurns).toEqual(["turn 1"]);
+                expect(game.isGameComplete).toBe(false);
             })
-            .then(() => {
-                return request(app)
+            .then(async () => {
+                const turn = "turn 2";
+                const response: GameResponse = await request(runningApp)
                     .post(`/api/games/${gameId}/turns`)
                     .set("Cookie", `token=${playerTwoToken}`)
-                    .send({ turn: "turn 2" });
+                    .send({ turn });
+                game = response.body;
+                expect(game.playerTwoTurns).toEqual(["turn 2"]);
+                expect(game.isGameComplete).toBe(false);
+            })
+            .then(async () => {
+                const turn = "matching turn";
+                const response: GameResponse = await request(runningApp)
+                    .post(`/api/games/${gameId}/turns`)
+                    .set("Cookie", `token=${playerOneToken}`)
+                    .send({ turn });
+                game = response.body;
+                expect(game.playerOneTurns).toEqual([
+                    "turn 1",
+                    "matching turn",
+                ]);
+                expect(game.isGameComplete).toBe(false);
+            })
+            .then(async () => {
+                const turn = "matching turn";
+                const response: GameResponse = await request(runningApp)
+                    .post(`/api/games/${gameId}/turns`)
+                    .set("Cookie", `token=${playerTwoToken}`)
+                    .send({ turn });
+                game = response.body;
+                expect(game.playerTwoTurns).toEqual([
+                    "turn 2",
+                    "matching turn",
+                ]);
+                expect(game.isGameComplete).toBe(true);
+                done();
             });
     });
 });

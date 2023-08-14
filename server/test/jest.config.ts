@@ -1,10 +1,18 @@
-import type { Config } from "@jest/types";
+import  { type JestConfigWithTsJest } from "ts-jest";
 
 // Sync object
-const config: Config.InitialOptions = {
+const config: JestConfigWithTsJest = {
     preset: "ts-jest",
     testEnvironment: "node",
     setupFiles: ["dotenv/config"],
     verbose: true,
+    transform: {
+        "^.+\\.ts$": [
+            "ts-jest",
+            {
+                tsconfig: "tsconfig.node.json",
+            },
+        ],
+    },
 };
 export default config;
