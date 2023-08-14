@@ -1,28 +1,21 @@
 <script setup lang="ts">
+import { useRouter } from "vue-router";
 import { useGamesStore } from "../stores/games";
-// import { useRouter } from "vue-router";
-import InvitePlayerModal from "../components/InvitePlayerModal.vue";
-// const router = useRouter();
+const router = useRouter();
 const gamesStore = useGamesStore();
 void gamesStore.initGames();
 
 function handleGameClick(event: MouseEvent | KeyboardEvent, gameId: string) {
-    const clickedGame = gamesStore.getGameById(gameId);
-
-    if (clickedGame && !clickedGame.playerTwoUserId) {
-
-    }
+    void router.push(`/games/${gameId}`)
 }
 </script>
 
 <template>
     <main>
         <v-list v-if="gamesStore.areGamesInitialized" lines="two">
-            <v-list-item v-for="game in gamesStore.currentGames" :key="game._id" :title="game._id"
-                :subtitle="game.isCurrentUsersTurn ? 'It\'s your turn!' : 'Waiting for other player'"
-                @click="event => handleGameClick(event, game._id)" />
+            <v-list-item v-for="game in gamesStore.currentGames" :key="game._id" :title="game.uiTitle"
+                :subtitle="game.uiSubtitle" @click="event => handleGameClick(event, game._id)" />
         </v-list>
-        <InvitePlayerModal />
     </main>
 </template>
 

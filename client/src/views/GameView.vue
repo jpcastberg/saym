@@ -1,51 +1,113 @@
 <script setup lang="ts">
+import { ref, type Ref } from "vue";
+import { useRouter } from "vue-router";
 import { useGamesStore } from "../stores/games";
 import { useAppStore } from "../stores/app";
-import { useRouter } from "vue-router";
+import InvitePlayerModal from "../components/InvitePlayerModal.vue";
+import { type ComputedGameModel } from "../stores/games";
 const router = useRouter();
-const { "currentRoute": { "value": { "params": { gameId } } } } = router;
 const gamesStore = useGamesStore();
-await gamesStore.setActiveGame(String(gameId));
+const { "currentRoute": { "value": { "params": { gameId } } } } = router;
+const turnInput = ref("");
+const game: Ref<ComputedGameModel | undefined> = ref();
 const appStore = useAppStore();
+
+if (gamesStore.areGamesInitialized) {
+    asyncInit();
+} else {
+    void gamesStore.initGames()
+        .then(asyncInit)
+}
+
+function asyncInit() {
+    game.value = gamesStore.getGameById(gameId as string)
+    if (game.value.needToInvitePlayer) {
+        appStore.shouldShowInvitePlayerDialog = true; // todo: determine if this is actually needed, it's really just there for vuetify
+    }
+}
 
 function handleTurnFormSubmit(event: SubmitEvent) {
     event.preventDefault();
+    if (game.value) {
+        void gamesStore.submitTurn(turnInput.value, game.value._id)
+    }
+
+    turnInput.value = "";
 }
 
-function handleInput(event: InputEvent) {
-    const eventTarget = event.target as HTMLInputElement;
-    appStore.turnInput = eventTarget.value;
+function getFormPrompt() {
+    if (game.value) {
+        const firstOrNext = Math.min(game.value.playerOneTurns.length, game.value.playerTwoTurns.length) === 0 ? "first" : "next"
+        return `Guess what ${game.value.otherPlayer?.username ?? "your friend"}'s ${firstOrNext} word will be`
+    }
+}
+
+function clearTurnInput() {
+    turnInput.value = "";
+}
+
+function scrollInputIntoView(event: FocusEvent) {
+    const inputElement = event.target as HTMLInputElement;
+    setTimeout(() => {
+        inputElement.scrollIntoView({
+            behavior: "smooth"
+        });
+        console.log("called scrollInputIntoView")
+    }, 590);
 }
 </script>
 
 <template>
-    <main>
-        <div v-if="gamesStore.activeGame">
-            <div class="pa-6">
-                <div class="d-flex justify-space-between">
-                    <div>
-                        <div v-for="turn in gamesStore.activeGame.playerOneTurns">
-                            {{ turn }}
+    <main v-if="game" class="h-100 pa-6">
+        <div class="h-100 d-flex flex-column justify-space-between">
+            <div class="d-flex flex-column">
+                <template v-for="displayTurn, idx in game.displayTurns" :key="idx">
+                    <div class="turn-item-container d-flex justify-space-between">
+                        <div class="w-100 text-center">
+                            <v-chip>
+                                {{ displayTurn.currentPlayerTurn }}
+                            </v-chip>
+                        </div>
+                        <div class="w-100 text-center">
+                            <span v-if="displayTurn.otherPlayerTurn">
+                                {{ displayTurn.icon }}
+                            </span>
+                        </div>
+                        <div class="w-100 text-center">
+                            <v-chip v-if="displayTurn.otherPlayerTurn">
+                                {{ displayTurn.otherPlayerTurn }}
+                            </v-chip>
                         </div>
                     </div>
-                    <div>
-                        <div v-for="turn in gamesStore.activeGame.playerTwoTurns">
-                            {{ turn }}
-                        </div>
-                    </div>
-                </div>
+                    <v-divider v-if="idx < game.displayTurns.length - 1" />
+                </template>
             </div>
-            <v-form v-if="gamesStore.activeGame.isCurrentUsersTurn" class="pa-5 d-flex align-center justify-center"
-                @submit="handleTurnFormSubmit">
-                <v-text-field variant="solo" label="What's your next word?" required @input="handleInput" />
-                <v-btn class="ml-2" size="x-large" density="compact" icon="mdi-arrow-up-thick" />
+            <v-card v-if="game.hasUserPlayedRound" class="text-center" text="Waiting for your friend to go" />
+            <v-form v-else class="d-flex align-center justify-center turn-input" @submit="handleTurnFormSubmit">
+                <v-text-field v-model="turnInput" persistent-clear clearable hide-details="auto" variant="solo"
+                    :label="getFormPrompt()" required @click:clear="clearTurnInput" @focus="scrollInputIntoView" />
+                <v-btn type="submit" class="ml-2" size="x-large" density="compact" icon="mdi-arrow-up-thick" />
             </v-form>
         </div>
-        <div v-else>
-            no game ya dingo
-        </div>
+        <InvitePlayerModal v-if="game.needToInvitePlayer" :game-needing-invite="game" />
     </main>
 </template>
 
 <style scoped>
+.turn-item-container {
+    padding: 5px 0 5px
+}
+
+.turn-item-container:first-child {
+    padding: 0 0 5px;
+}
+
+.turn-item-container:last-child {
+    padding: 5px 0 0;
+}
+
+.turn-input {
+    position: relative;
+    bottom: 0;
+}
 </style>
