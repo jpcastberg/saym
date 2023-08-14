@@ -1,18 +1,13 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import { useUserStore } from "../stores/user";
-import { useAppStore } from "../stores/app";
 const userStore = useUserStore();
-const appStore = useAppStore();
 void userStore.initUser();
+const usernameInput = ref("");
 
 async function handleUsernameFormSubmit(event: SubmitEvent) {
     event.preventDefault();
-    await userStore.updateUsername(appStore.usernameInput);
-}
-
-function handleInput(event: InputEvent) {
-    const eventTarget = event.target as HTMLInputElement;
-    appStore.usernameInput = eventTarget.value;
+    await userStore.updateUsername(usernameInput.value);
 }
 </script>
 
@@ -24,8 +19,7 @@ function handleInput(event: InputEvent) {
             </v-card-title>
             <v-form class="pa-5 d-flex flex-column align-center" @submit="handleUsernameFormSubmit">
                 <v-card-text class="w-100">
-                    <v-text-field v-model="appStore.usernameInput" label="What should we call you?" required
-                        @input="handleInput" />
+                    <v-text-field v-model="usernameInput" label="What should we call you?" required />
                 </v-card-text>
                 <v-card-actions class="py-0">
                     <v-btn size="large" type="submit" color="teal-darken-1" variant="elevated">
