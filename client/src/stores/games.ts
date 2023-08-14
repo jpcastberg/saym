@@ -1,142 +1,157 @@
 import { defineStore } from "pinia";
-import { type GameModel } from "../../../shared/models/GameModels";
+import {
+    type AllGamesResponseModel,
+    type GameResponseModel,
+} from "../../../shared/models/GameModels";
 import { type UserModel } from "../../../shared/models/UserModels";
+import { listenForEvent } from "../api/websocket";
 import { useUserStore } from "./user";
 
-export interface ComputedGameModel extends GameModel {
-    otherUserUsername: string;
-    isCurrentUsersTurn: boolean;
+export interface ComputedGameModel extends GameResponseModel {
+    otherPlayer: UserModel | null;
+    displayTurns: DisplayTurn[];
+    hasUserPlayedRound: boolean;
+    uiTitle: string;
+    uiSubtitle: string;
+}
+
+interface DisplayTurn {
+    currentPlayerTurn: string;
+    icon: string;
+    otherPlayerTurn: string;
 }
 
 interface GamesState {
     areGamesInitialized: boolean;
-    currentGames: ComputedGameModel[];
-    finishedGames: GameModel[];
-    activeGame: ComputedGameModel | undefined;
+    currentGames: Record<string, ComputedGameModel>;
+    finishedGames: ComputedGameModel[];
 }
-
-type UsernameCache = Record<string, string>;
-
-const usernameCache: UsernameCache = {};
 
 export const useGamesStore = defineStore("games", {
     state: (): GamesState => ({
         areGamesInitialized: false,
-        currentGames: [],
+        currentGames: {},
         finishedGames: [],
-        activeGame: void 0,
     }),
+    getters: {
+        currentGamesList(state) {
+            return [...Object.values(state.currentGames)].sort(
+                byLastUpdatedDescending,
+            );
+        },
+    },
     actions: {
         async initGames() {
             const userStore = useUserStore();
             await userStore.initUser();
-            const allGames: GameModel[] = (await fetch("/api/games").then(
-                (response) => response.json(),
-            )) as GameModel[];
-            const newCurrentGames = [];
-            const newFinishedGames = [];
+            const allGames = (await fetch("/api/games").then((response) =>
+                response.json(),
+            )) as AllGamesResponseModel;
 
-            for (const game of allGames) {
-                const computedGame = await computeGameMetadata(game);
-                if (computedGame.isGameComplete) {
-                    newFinishedGames.push(computedGame);
-                } else {
-                    newCurrentGames.push(computedGame);
-                }
-
-                this.currentGames = newCurrentGames;
-                this.finishedGames = newFinishedGames;
-                this.areGamesInitialized = true;
-            }
-        },
-        getGameById(gameId: string) {
-            return this.currentGames.find((game) => game._id === gameId);
-        },
-        async setActiveGame(gameId: string) {
-            if (!this.areGamesInitialized) {
-                await this.initGames();
-            }
-
-            this.activeGame = this.getGameById(gameId);
-        },
-        async submitTurn(turn: string) {
-            if (!this.activeGame) {
-                return;
-            }
-
-            const activeGameId = this.activeGame._id;
-
-            const gameResponse: GameModel = (await fetch(
-                `/api/games/${activeGameId}`,
-                {
-                    method: "post",
-                    body: JSON.stringify({ turn }),
-                    headers: {
-                        "content-type": "application/json",
+            this.currentGames = allGames.currentGames
+                .map(computeGameMetadata)
+                .reduce(
+                    (
+                        currentGamesMap: Record<string, ComputedGameModel>,
+                        game,
+                    ) => {
+                        currentGamesMap[game._id] = game;
+                        return currentGamesMap;
                     },
+                    {},
+                );
+            this.finishedGames =
+                allGames.finishedGames.map(computeGameMetadata);
+            this.areGamesInitialized = true;
+        },
+        getGameById(gameId: string): ComputedGameModel {
+            return this.currentGames[gameId];
+        },
+        updateGame(game: ComputedGameModel) {
+            Object.assign(this.currentGames[game._id], game);
+        },
+        async createGame(): Promise<GameResponseModel> {
+            const newGame = (await fetch("/api/games", { method: "post" }).then(
+                (response) => response.json(),
+            )) as GameResponseModel;
+            this.currentGames[newGame._id] = computeGameMetadata(newGame);
+
+            return newGame;
+        },
+        async logGameInvite(gameId: string) {
+            const gameResponse = (await fetch(`/api/games/${gameId}/invite`, {
+                method: "post",
+            }).then((response) => response.json())) as GameResponseModel;
+            this.updateGame(computeGameMetadata(gameResponse));
+        },
+        async submitTurn(turn: string, gameId: string) {
+            const gameResponse = (await fetch(`/api/games/${gameId}/turns`, {
+                method: "post",
+                body: JSON.stringify({ turn }),
+                headers: {
+                    "content-type": "application/json",
                 },
-            ).then((response) => response.json())) as GameModel;
+            }).then((response) => response.json())) as GameResponseModel;
 
-            const computedGameResponse = await computeGameMetadata(
-                gameResponse,
-            );
-            const updatedCurrentGames = [...this.currentGames];
-
-            updatedCurrentGames.splice(
-                updatedCurrentGames.indexOf(this.activeGame),
-                1,
-                computedGameResponse,
-            );
-            this.currentGames = updatedCurrentGames;
-            this.activeGame = computedGameResponse;
+            this.updateGame(computeGameMetadata(gameResponse));
         },
     },
 });
 
-async function computeGameMetadata(
-    game: GameModel,
-): Promise<ComputedGameModel> {
-    const userStore = useUserStore();
-    const isPlayerOne = userStore.userId === game.playerOneUserId;
-    const isCurrentUsersTurn =
-        isPlayerOne &&
-        game.playerOneTurns.length === game.playerTwoTurns.length;
-    const otherPlayerUserId = isPlayerOne
-        ? game.playerTwoUserId
-        : game.playerOneUserId;
-    let otherUserUsername = "";
+listenForEvent("gameUpdate", (updatedGame) => {
+    const gamesStore = useGamesStore();
+    gamesStore.updateGame(computeGameMetadata(updatedGame));
+});
 
-    if (otherPlayerUserId && usernameCache[otherPlayerUserId]) {
-        otherUserUsername = usernameCache[otherPlayerUserId];
-    } else if (otherPlayerUserId) {
-        otherUserUsername = await fetch(`/api/users/${otherPlayerUserId}`)
-            .then((response) => response.json())
-            .then((otherUser: UserModel) => otherUser.username);
-        usernameCache[otherPlayerUserId] = otherUserUsername;
-    }
-
-    return {
-        ...game,
-        otherUserUsername,
-        isCurrentUsersTurn,
-    };
+function byLastUpdatedDescending(a: ComputedGameModel, b: ComputedGameModel) {
+    return a.lastUpdate > b.lastUpdate ? -1 : 1;
 }
 
-// const socket = new WebSocket("ws://localhost:3000");
+function computeGameMetadata(game: GameResponseModel): ComputedGameModel {
+    const userStore = useUserStore();
+    const isPlayerOne = userStore.userId === game.playerOne?._id;
+    const [otherPlayer, currentPlayerTurns, otherPlayerAllTurns] = isPlayerOne
+        ? [game.playerTwo, game.playerOneTurns, game.playerTwoTurns]
+        : [game.playerOne, game.playerTwoTurns, game.playerOneTurns];
+    const hasUserPlayedRound =
+        currentPlayerTurns.length === otherPlayerAllTurns.length + 1;
+    const displayTurns: DisplayTurn[] = currentPlayerTurns.map(
+        (currentPlayerTurn, idx) => {
+            return {
+                currentPlayerTurn,
+                icon: "❌",
+                otherPlayerTurn: otherPlayerAllTurns[idx],
+            };
+        },
+    );
 
-// socket.onopen = () => {
-//     console.log("Connected to server");
-// };
+    let uiTitle: string;
+    let uiSubtitle = "";
 
-// socket.onmessage = (event) => {
-//     console.log(event);
-// };
+    if (otherPlayer) {
+        uiTitle = `Game with ${otherPlayer.username || "your friend"}`;
+        uiSubtitle = hasUserPlayedRound
+            ? `Waiting for ${otherPlayer.username || "your friend"} to go`
+            : "Ready for your word!";
+    } else {
+        uiTitle = "Pending Game";
+        if (game.needToInvitePlayer) {
+            uiSubtitle = "Invite someone to play!";
+        } else if (!hasUserPlayedRound) {
+            uiSubtitle = "Submit your first word while waiting";
+        } else {
+            uiSubtitle = "Waiting for other player to join...";
+        }
+    }
 
-// socket.onclose = () => {
-//     console.log("Connection closed");
-// };
+    const computedGame = {
+        ...game,
+        uiTitle,
+        uiSubtitle,
+        otherPlayer,
+        displayTurns,
+        hasUserPlayedRound,
+    };
 
-// // Function to send moves to the server
-// function sendMessage(message) {
-//     socket.send(message);
-// }
+    return computedGame;
+}

@@ -8,7 +8,7 @@ const wsServer = new ws.Server({ noServer: true }); // noServer delegates the co
 wsServer.on("connection", async (socket, req) => {
     const providedToken = cookie.parse(req.headers.cookie ?? "").token;
     const existingToken: TokenModel | null = await tokensDbApi.get(
-        providedToken
+        providedToken,
     );
 
     if (existingToken) {
@@ -16,7 +16,7 @@ wsServer.on("connection", async (socket, req) => {
 
         if (existingUser) {
             console.log(
-                `existing user with username ${existingUser.username} and id ${existingUser._id} connected!`
+                `existing user with username ${existingUser.username} and id ${existingUser._id} connected!`,
             );
             connections.set(existingUser._id, socket);
 
