@@ -35,7 +35,6 @@ describe("Test the root path", () => {
         void request(runningApp)
             .get("/")
             .then((response) => {
-                console.log("response: " + JSON.stringify(response));
                 expect(response.statusCode).toBe(200);
                 done();
             });
@@ -111,8 +110,6 @@ describe("Games", () => {
                     .post(`/api/games/${newGame._id}/join`)
                     .then((response: GameResponse) => {
                         const { body: existingGame } = response;
-
-                        console.log("existing game:", existingGame);
 
                         expect(existingGame).toHaveProperty("playerOne");
                         expect(existingGame.playerOne).toHaveProperty("_id");

@@ -27,6 +27,12 @@ function triggerCopiedMessage(): Promise<void> {
 function invitePlayer(event: SubmitEvent) {
     event.preventDefault();
     const gameId = props.gameNeedingInvite._id;
+
+    if (event.submitter?.id === "bot-button") {
+        void gamesStore.inviteBot(gameId);
+        return;
+    }
+
     const shareLink = `${location.protocol}//${location.host}/games/${gameId}`;
 
     if (isNativeSharingAvailable) {
@@ -61,7 +67,7 @@ function invitePlayer(event: SubmitEvent) {
             </v-card-title>
             <v-form class="pa-5 d-flex flex-column align-center" @submit="invitePlayer">
                 <v-card-actions class="py-0">
-                    <v-btn size="large" type="submit" color="teal-darken-1" variant="elevated">
+                    <v-btn id="bot-button" size="large" type="submit" color="teal-darken-1" variant="elevated">
                         Play The Bot
                     </v-btn>
                 </v-card-actions>

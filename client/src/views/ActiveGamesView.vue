@@ -3,7 +3,6 @@ import { useRouter } from "vue-router";
 import { useGamesStore } from "../stores/games";
 const router = useRouter();
 const gamesStore = useGamesStore();
-void gamesStore.initGames();
 
 function handleGameClick(event: MouseEvent | KeyboardEvent, gameId: string) {
     void router.push(`/games/${gameId}`)

@@ -4,10 +4,8 @@ import wsServer from "./websocket";
 
 const port = 3000;
 
-printRemoteIp();
-
 const server = app.listen(port, () => {
-    console.log(`Example app listening on port ${port}`);
+    console.log(`Saym app listening on port ${port}`);
 });
 
 server.on("upgrade", (request, socket, head) => {
@@ -15,18 +13,3 @@ server.on("upgrade", (request, socket, head) => {
         wsServer.emit("connection", socket, request);
     });
 });
-
-function printRemoteIp() {
-    http.get(
-        {
-            host: "api.ipify.org",
-            port: 80,
-            path: "/",
-        },
-        function (resp) {
-            resp.on("data", function (ip) {
-                console.log("public ip: " + ip);
-            });
-        },
-    );
-}

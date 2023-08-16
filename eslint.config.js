@@ -33,6 +33,7 @@ module.exports = [
             "vue/first-attribute-linebreak": "off",
             "vue/html-closing-bracket-newline": "off",
             "@typescript-eslint/no-misused-promises": ["error", { "checksVoidReturn": false }],
+            "@typescript-eslint/no-non-null-assertion": "off",
             eqeqeq: "error",
             "import/order": "error",
             "import/consistent-type-specifier-style": ["error", "prefer-inline"]

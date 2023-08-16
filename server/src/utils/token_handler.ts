@@ -15,22 +15,13 @@ export default async (
         cookie.parse(req.headers.cookie ?? "").token ||
         parseBearerToken(req.headers.authorization ?? "");
     if (providedToken) {
-        console.log("token provided: " + providedToken);
         const existingToken: TokenModel | null = await tokensDbApi.get(
             providedToken,
         );
 
         if (existingToken) {
-            console.log(
-                "provided token exists: " + JSON.stringify(existingToken),
-            );
             res.locals.token = existingToken.token;
-            const existingUser = await usersDbApi.get(existingToken.user_id);
-
-            if (existingUser) {
-                console.log("existing user id: " + existingUser._id);
-                res.locals.userId = existingUser._id;
-            }
+            res.locals.userId = existingToken.user_id;
         }
     } else {
         const userCreateResponse: InsertOneResult<UserModel> =

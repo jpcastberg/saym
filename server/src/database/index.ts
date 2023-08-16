@@ -1,4 +1,5 @@
 import {
+    Db,
     Document,
     Filter,
     MongoClient,
@@ -25,6 +26,8 @@ const options = {
     serverApi: ServerApiVersion.v1,
 };
 const client = new MongoClient(mongoUri, options as MongoClientOptions);
+let dbConnection: Db | undefined;
+void initBot();
 
 export interface TokenModel {
     _id: string;
@@ -174,8 +177,10 @@ class GamesDbApi {
             gameUpdates.$push = {
                 playerTwoTurns: playerTwoTurn,
             };
+        }
 
-            $set.isGameComplete = Boolean(isGameComplete);
+        if (isGameComplete) {
+            $set.isGameComplete = isGameComplete;
         }
 
         gameUpdates.$set = {
@@ -265,6 +270,22 @@ function getPlayerFilterExpression(
     ];
 }
 
+export const botName = "Saymbot";
+async function initBot() {
+    const db = await dbConnect();
+    const users = db.collection<UserModel>("users");
+    const filter: Filter<UserModel> = {
+        _id: botName,
+    };
+    const bot: UserModel = {
+        _id: botName,
+        username: botName,
+    };
+    void users.replaceOne(filter, bot, {
+        upsert: true,
+    });
+}
+
 export const tokensDbApi = new TokensDbApi();
 export const usersDbApi = new UsersDbApi();
 export const gamesDbApi = new GamesDbApi();
@@ -274,7 +295,11 @@ export async function dbClose() {
 }
 
 export async function dbConnect() {
+    if (dbConnection) {
+        return dbConnection;
+    }
     await client.connect();
     console.log("db connected!");
-    return client.db("saym");
+    dbConnection = client.db("saym");
+    return dbConnection;
 }

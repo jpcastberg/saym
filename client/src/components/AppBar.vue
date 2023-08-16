@@ -4,16 +4,17 @@ import { useAppStore } from "../stores/app";
 import { useGamesStore } from "../stores/games";
 
 const appStore = useAppStore();
+const gamesStore = useGamesStore();
 const router = useRouter();
 router.beforeResolve((to) => {
-    appStore.appBarTitle = to.meta.appBarTitle as string;
+    if (to.meta.appBarTitle) {
+        appStore.appBarTitle = to.meta.appBarTitle as string;
+    }
 });
 
 function handleIconClick() {
     appStore.isAppDrawerOpen = !appStore.isAppDrawerOpen;
 }
-
-const gamesStore = useGamesStore();
 
 async function handleNewGameButtonClick() {
     const newGame = await gamesStore.createGame();

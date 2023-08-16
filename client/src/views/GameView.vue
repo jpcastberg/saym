@@ -9,21 +9,16 @@ const router = useRouter();
 const gamesStore = useGamesStore();
 const { "currentRoute": { "value": { "params": { gameId } } } } = router;
 const turnInput = ref("");
-const game: Ref<ComputedGameModel | undefined> = ref();
+const game: Ref<ComputedGameModel | undefined> = ref(gamesStore.getGameById(gameId as string));
 const appStore = useAppStore();
 
-if (gamesStore.areGamesInitialized) {
-    asyncInit();
-} else {
-    void gamesStore.initGames()
-        .then(asyncInit)
-}
+const otherPlayerUsername = game.value?.otherPlayer?.username;
+const appBarTitle = otherPlayerUsername ?
+    `Game with ${otherPlayerUsername}` : "Saym game";
+appStore.appBarTitle = appBarTitle;
 
-function asyncInit() {
-    game.value = gamesStore.getGameById(gameId as string)
-    if (game.value.needToInvitePlayer) {
-        appStore.shouldShowInvitePlayerDialog = true; // todo: determine if this is actually needed, it's really just there for vuetify
-    }
+if (game.value?.needToInvitePlayer) {
+    appStore.shouldShowInvitePlayerDialog = true; // todo: determine if this is actually needed, it's really just there for vuetify
 }
 
 function handleTurnFormSubmit(event: SubmitEvent) {
@@ -52,7 +47,6 @@ function scrollInputIntoView(event: FocusEvent) {
         inputElement.scrollIntoView({
             behavior: "smooth"
         });
-        console.log("called scrollInputIntoView")
     }, 590);
 }
 </script>
@@ -82,8 +76,28 @@ function scrollInputIntoView(event: FocusEvent) {
                     <v-divider v-if="idx < game.displayTurns.length - 1" />
                 </template>
             </div>
-            <v-card v-if="game.hasUserPlayedRound" class="text-center" text="Waiting for your friend to go" />
-            <v-form v-else class="d-flex align-center justify-center turn-input" @submit="handleTurnFormSubmit">
+            <v-card v-if="game.isGameComplete" class="text-center">
+                <v-card-item>
+                    <v-card-title>
+                        Saym!
+                    </v-card-title>
+                    <v-card-subtitle>
+                        You and {{ game.otherPlayer?.username }} said the saym word:
+                        {{ game.playerOneTurns[game.playerOneTurns.length - 1] }}.
+                    </v-card-subtitle>
+                </v-card-item>
+                <v-divider />
+                <v-btn size="large" class="my-5" color="teal-darken-1">
+                    Keep playing with {{ game.otherPlayer?.username }}
+                </v-btn>
+            </v-card>
+            <v-card v-else-if="game.hasUserPlayedRound && !game.isGameComplete" class="text-center">
+                <v-card-text>
+                    Waiting for {{ game.otherPlayer?.username }} to go
+                </v-card-text>
+            </v-card>
+            <v-form v-else-if="!game.hasUserPlayedRound && !game.isGameComplete"
+                class="d-flex align-center justify-center turn-input" @submit="handleTurnFormSubmit">
                 <v-text-field v-model="turnInput" persistent-clear clearable hide-details="auto" variant="solo"
                     :label="getFormPrompt()" required @click:clear="clearTurnInput" @focus="scrollInputIntoView" />
                 <v-btn type="submit" class="ml-2" size="x-large" density="compact" icon="mdi-arrow-up-thick" />

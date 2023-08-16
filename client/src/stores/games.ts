@@ -23,9 +23,17 @@ interface DisplayTurn {
 
 interface GamesState {
     areGamesInitialized: boolean;
-    currentGames: Record<string, ComputedGameModel>;
+    currentGames: Record<string, ComputedGameModel | undefined>;
     finishedGames: ComputedGameModel[];
 }
+
+interface Deferred {
+    promise: Promise<void>;
+    resolve?: () => void;
+}
+
+const pendingInitializationCallbacks: (() => void)[] = [];
+let isInitializationInProgress = false;
 
 export const useGamesStore = defineStore("games", {
     state: (): GamesState => ({
@@ -35,15 +43,21 @@ export const useGamesStore = defineStore("games", {
     }),
     getters: {
         currentGamesList(state) {
-            return [...Object.values(state.currentGames)].sort(
-                byLastUpdatedDescending,
+            return [...Object.values(state.currentGames)].sort((a, b) =>
+                byLastUpdatedDescending(a!, b!),
             );
         },
     },
     actions: {
         async initGames() {
+            if (isInitializationInProgress) {
+                const initializationDeferred = getDeferred();
+                pendingInitializationCallbacks.push(
+                    initializationDeferred.resolve ?? (() => void 0),
+                );
+                return initializationDeferred.promise;
+            }
             const userStore = useUserStore();
-            await userStore.initUser();
             const allGames = (await fetch("/api/games").then((response) =>
                 response.json(),
             )) as AllGamesResponseModel;
@@ -63,12 +77,29 @@ export const useGamesStore = defineStore("games", {
             this.finishedGames =
                 allGames.finishedGames.map(computeGameMetadata);
             this.areGamesInitialized = true;
+
+            while (pendingInitializationCallbacks.length) {
+                const callback = pendingInitializationCallbacks.shift();
+                callback && callback();
+            }
         },
-        getGameById(gameId: string): ComputedGameModel {
-            return this.currentGames[gameId];
+        getGameById(gameId: string): ComputedGameModel | undefined {
+            if (this.currentGames[gameId]) {
+                return this.currentGames[gameId]!;
+            }
+
+            const finishedGame = this.finishedGames.find(
+                (game) => game._id === gameId,
+            );
+
+            if (finishedGame) {
+                return finishedGame;
+            }
         },
         updateGame(game: ComputedGameModel) {
-            Object.assign(this.currentGames[game._id], game);
+            if (this.currentGames[game._id]) {
+                Object.assign(this.currentGames[game._id]!, game);
+            }
         },
         async createGame(): Promise<GameResponseModel> {
             const newGame = (await fetch("/api/games", { method: "post" }).then(
@@ -82,6 +113,15 @@ export const useGamesStore = defineStore("games", {
             const gameResponse = (await fetch(`/api/games/${gameId}/invite`, {
                 method: "post",
             }).then((response) => response.json())) as GameResponseModel;
+            this.updateGame(computeGameMetadata(gameResponse));
+        },
+        async inviteBot(gameId: string) {
+            const gameResponse = (await fetch(
+                `/api/games/${gameId}/invite-bot`,
+                {
+                    method: "post",
+                },
+            ).then((response) => response.json())) as GameResponseModel;
             this.updateGame(computeGameMetadata(gameResponse));
         },
         async submitTurn(turn: string, gameId: string) {
@@ -103,6 +143,15 @@ listenForEvent("gameUpdate", (updatedGame) => {
     gamesStore.updateGame(computeGameMetadata(updatedGame));
 });
 
+function getDeferred() {
+    const deferred: Deferred = {
+        promise: new Promise((resolve) => {
+            deferred.resolve = resolve;
+        }),
+    };
+    return deferred;
+}
+
 function byLastUpdatedDescending(a: ComputedGameModel, b: ComputedGameModel) {
     return a.lastUpdate > b.lastUpdate ? -1 : 1;
 }
@@ -119,7 +168,10 @@ function computeGameMetadata(game: GameResponseModel): ComputedGameModel {
         (currentPlayerTurn, idx) => {
             return {
                 currentPlayerTurn,
-                icon: "❌",
+                icon:
+                    game.isGameComplete && idx === currentPlayerTurns.length - 1
+                        ? "✅"
+                        : "❌",
                 otherPlayerTurn: otherPlayerAllTurns[idx],
             };
         },

@@ -1,5 +1,5 @@
 import express, { Request, Response } from "express";
-import { gamesDbApi } from "../database";
+import { gamesDbApi, botName } from "../database";
 import {
     AllGamesResponseModel,
     GameResponseModel,
@@ -9,6 +9,7 @@ import {
 } from "../../../shared/models/GameModels";
 import { ResponseLocals } from "../models/models";
 import { sendWebsocketMessage } from "../websocket";
+import { generateTurn } from "../utils/saymbot";
 
 const gamesApi = express.Router();
 
@@ -68,11 +69,6 @@ gamesApi.get(
             locals: { userId },
         } = res;
         const foundGame = await gamesDbApi.get(gameId, userId);
-        console.log(
-            `found game with id: ${gameId} associated w user ${userId}: ${JSON.stringify(
-                foundGame,
-            )}`,
-        );
         res.send(foundGame ?? void 0);
     },
 );
@@ -122,87 +118,15 @@ gamesApi.post(
         const {
             locals: { userId },
         } = res;
-        const currentGame = await gamesDbApi.get(gameId, userId);
-        const sanitizedTurn = sanitize(turn);
 
-        if (!currentGame) {
-            res.status(404).send();
-            return;
-        } else if (!sanitizedTurn || currentGame.isGameComplete) {
-            res.status(400).send();
-            return;
-        }
-
-        let playerOneTurn: string | null = null;
-        let playerTwoTurn: string | null = null;
-        let isGameComplete: boolean | null = null;
-        let otherPlayerUserId: string | null = null;
-
-        if (currentGame.playerOne?._id === userId) {
-            playerOneTurn = sanitizedTurn;
-            otherPlayerUserId = currentGame.playerTwo?._id ?? null;
-        } else if (currentGame.playerTwo?._id === userId) {
-            playerTwoTurn = sanitizedTurn;
-            otherPlayerUserId = currentGame.playerOne?._id ?? null;
-        }
-
+        const updatedGame = await addTurnToGame(turn, userId, gameId);
         if (
-            (playerOneTurn &&
-                !isValidTurn(
-                    playerOneTurn,
-                    currentGame.playerOneTurns,
-                    currentGame.playerTwoTurns,
-                )) ??
-            (playerTwoTurn &&
-                !isValidTurn(
-                    playerTwoTurn,
-                    currentGame.playerTwoTurns,
-                    currentGame.playerOneTurns,
-                ))
+            !updatedGame.isGameComplete &&
+            updatedGame.playerTwo?._id === botName
         ) {
-            res.status(400);
-            res.send();
+            scheduleBotTurn(updatedGame);
         }
-
-        if (
-            (playerOneTurn &&
-                isWinningTurn(
-                    playerOneTurn,
-                    currentGame.playerOneTurns,
-                    currentGame.playerTwoTurns,
-                )) ??
-            (playerTwoTurn &&
-                isWinningTurn(
-                    playerTwoTurn,
-                    currentGame.playerTwoTurns,
-                    currentGame.playerOneTurns,
-                ))
-        ) {
-            isGameComplete = true;
-        }
-
-        const updatedGame = await gamesDbApi.update(
-            userId,
-            gameId,
-            null,
-            playerOneTurn,
-            playerTwoTurn,
-            null,
-            isGameComplete,
-        );
-
-        res.send(updatedGame ?? void 0);
-
-        if (otherPlayerUserId) {
-            console.log();
-            sendWebsocketMessage(
-                otherPlayerUserId,
-                JSON.stringify({
-                    eventType: "gameUpdate",
-                    data: updatedGame,
-                } as GameWebsocketUpdateModel),
-            );
-        }
+        res.send(updatedGame);
     },
 );
 
@@ -251,25 +175,154 @@ gamesApi.post(
         const {
             locals: { userId },
         } = res;
+
+        const updatedGame = await invite(gameId, userId, false);
+
+        res.send(updatedGame);
+    },
+);
+
+gamesApi.post(
+    "/:gameId/invite-bot",
+    async (req, res: Response<GameResponseModel, ResponseLocals>) => {
+        const {
+            params: { gameId },
+        } = req;
+        const {
+            locals: { userId },
+        } = res;
+
+        const updatedGame = await invite(gameId, userId, true);
+        scheduleBotTurn(updatedGame);
+
+        res.send(updatedGame);
+    },
+);
+
+async function invite(
+    gameId: string,
+    userId: string,
+    inviteBot: boolean,
+): Promise<GameResponseModel> {
+    return new Promise(async (resolve, reject) => {
         const currentGame = await gamesDbApi.get(gameId, userId);
 
         if (!currentGame) {
-            res.status(404).send();
+            reject(404);
             return;
         }
 
         const dbResponse = await gamesDbApi.update(
             userId,
             gameId,
-            null,
+            inviteBot ? botName : null,
             null,
             null,
             false,
             null,
         );
-        res.send(dbResponse ?? void 0);
-    },
-);
+
+        if (dbResponse) {
+            resolve(dbResponse);
+        }
+    });
+}
+
+async function addTurnToGame(
+    turn: string,
+    userId: string,
+    gameId: string,
+): Promise<GameResponseModel> {
+    return new Promise(async (resolve, reject) => {
+        const currentGame = await gamesDbApi.get(gameId, userId);
+        const sanitizedTurn = sanitize(turn);
+
+        if (!currentGame) {
+            reject(404);
+            return;
+        } else if (!sanitizedTurn || currentGame.isGameComplete) {
+            reject(400);
+            return;
+        }
+
+        let playerOneTurn: string | null = null;
+        let playerTwoTurn: string | null = null;
+        let isGameComplete: boolean | null = null;
+
+        if (isPlayerOne(userId, currentGame)) {
+            playerOneTurn = sanitizedTurn;
+        } else {
+            playerTwoTurn = sanitizedTurn;
+        }
+
+        if (
+            (playerOneTurn &&
+                !isValidTurn(
+                    playerOneTurn,
+                    currentGame.playerOneTurns,
+                    currentGame.playerTwoTurns,
+                )) ??
+            (playerTwoTurn &&
+                !isValidTurn(
+                    playerTwoTurn,
+                    currentGame.playerTwoTurns,
+                    currentGame.playerOneTurns,
+                ))
+        ) {
+            reject(400);
+        }
+
+        if (
+            (playerOneTurn &&
+                isWinningTurn(
+                    playerOneTurn,
+                    currentGame.playerOneTurns,
+                    currentGame.playerTwoTurns,
+                )) ??
+            (playerTwoTurn &&
+                isWinningTurn(
+                    playerTwoTurn,
+                    currentGame.playerTwoTurns,
+                    currentGame.playerOneTurns,
+                ))
+        ) {
+            isGameComplete = true;
+        }
+
+        const updatedGame = await gamesDbApi.update(
+            userId,
+            gameId,
+            null,
+            playerOneTurn,
+            playerTwoTurn,
+            null,
+            isGameComplete,
+        );
+
+        if (updatedGame) {
+            resolve(updatedGame);
+
+            const otherPlayerUserId = isPlayerOne(userId, updatedGame)
+                ? updatedGame.playerTwo?._id
+                : updatedGame.playerOne?._id;
+            if (otherPlayerUserId) {
+                sendWebsocketMessage(
+                    otherPlayerUserId,
+                    JSON.stringify({
+                        eventType: "gameUpdate",
+                        data: updatedGame,
+                    } as GameWebsocketUpdateModel),
+                );
+            }
+        } else {
+            reject(500); // todo: replace with real errors
+        }
+    });
+}
+
+function isPlayerOne(userId: string, game: GameResponseModel) {
+    return game.playerOne?._id === userId;
+}
 
 function sanitize(turn: string): string {
     return turn.replace(/\s+/, " ").replace(/[^0-9a-z\s]/gi, "");
@@ -298,6 +351,13 @@ function isWinningTurn(
         turn.trim().toLowerCase() ===
             otherPlayerTurns[otherPlayerTurns.length - 1].trim().toLowerCase()
     );
+}
+
+function scheduleBotTurn(game: GameResponseModel) {
+    setTimeout(async () => {
+        const botTurn = await generateTurn(game);
+        void addTurnToGame(botTurn, botName, game._id);
+    }, 2000);
 }
 
 export default gamesApi;

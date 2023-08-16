@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
-import  { type Component } from "vue";
+import { type Component } from "vue";
 import ActiveGamesView from "../views/ActiveGamesView.vue";
 import GameView from "../views/GameView.vue";
 
@@ -18,9 +18,6 @@ const router = createRouter({
             path: "/games/:gameId",
             name: "games",
             component: GameView as Component,
-            meta: {
-                appBarTitle: "Your mom!",
-            },
         },
     ],
 });

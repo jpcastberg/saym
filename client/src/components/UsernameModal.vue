@@ -2,7 +2,6 @@
 import { ref } from "vue";
 import { useUserStore } from "../stores/user";
 const userStore = useUserStore();
-void userStore.initUser();
 const usernameInput = ref("");
 
 async function handleUsernameFormSubmit(event: SubmitEvent) {

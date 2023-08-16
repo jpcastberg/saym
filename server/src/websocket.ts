@@ -15,9 +15,6 @@ wsServer.on("connection", async (socket, req) => {
         const existingUser = await usersDbApi.get(existingToken.user_id);
 
         if (existingUser) {
-            console.log(
-                `existing user with username ${existingUser.username} and id ${existingUser._id} connected!`,
-            );
             connections.set(existingUser._id, socket);
 
             socket.on("close", () => {
