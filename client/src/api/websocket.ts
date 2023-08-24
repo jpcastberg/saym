@@ -3,7 +3,7 @@ import {
     type GameResponseModel,
 } from "../../../shared/models/GameModels";
 
-const socket = new WebSocket(`ws://${location.host}/websocket`);
+let socket = createWebSocketConnection();
 const eventNames = new Set<string>(["gameUpdate"]); // todo: proper enum
 
 socket.onmessage = (event: MessageEvent) => {
@@ -17,6 +17,16 @@ socket.onmessage = (event: MessageEvent) => {
         }
     }
 };
+
+document.addEventListener("visibilitychange", function () {
+    if (socket.readyState !== WebSocket.OPEN) {
+        socket = createWebSocketConnection();
+    }
+});
+
+function createWebSocketConnection() {
+    return new WebSocket(`ws://${location.host}/websocket`);
+}
 
 type EventCallback = (event: GameResponseModel) => void;
 type EventListeners = Record<string, EventCallback[]>;
