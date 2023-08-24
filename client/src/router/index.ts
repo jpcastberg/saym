@@ -10,9 +10,6 @@ const router = createRouter({
             path: "/",
             name: "home",
             component: ActiveGamesView as Component,
-            meta: {
-                appBarTitle: "Active Games!",
-            },
         },
         {
             path: "/games/:gameId",
