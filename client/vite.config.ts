@@ -12,7 +12,31 @@ export default defineConfig({
         vue(),
         vueJsx(),
         vuetify({ autoImport: true }),
-        VitePWA({ registerType: "autoUpdate" }),
+        VitePWA({
+            injectRegister: "auto",
+            registerType: "autoUpdate",
+            manifest: {
+                name: "Saym",
+                short_name: "Saym",
+                description: "A word guessing game for you and your friends",
+                theme_color: "#00897b",
+                icons: [
+                    {
+                        src: "pwa-192x192.png",
+                        sizes: "192x192",
+                        type: "image/png",
+                    },
+                    {
+                        src: "pwa-512x512.png",
+                        sizes: "512x512",
+                        type: "image/png",
+                    },
+                ],
+            },
+            devOptions: {
+                enabled: true,
+            },
+        }),
     ],
     server: {
         host: true,
