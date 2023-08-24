@@ -1,19 +1,18 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { useAppStore } from "../stores/app";
+import { computed, ref } from "vue";
 import { useGamesStore } from "../stores/games";
 import { useUserStore } from "../stores/user";
 import { type ComputedGameModel } from "../stores/games";
 const props = defineProps<{
     gameNeedingInvite: ComputedGameModel
 }>();
-const appStore = useAppStore();
 const userStore = useUserStore();
 const gamesStore = useGamesStore();
 const isNativeSharingAvailable = "share" in navigator;
 const defaultInviteButtonText = isNativeSharingAvailable ? "Invite Player" : "Invite With Url";
 const inviteButtonCopiedText = "Url Copied";
 const inviteButtonText = ref(defaultInviteButtonText);
+const shouldShowInvitePlayerDialog = computed(() => props.gameNeedingInvite.needToInvitePlayer);
 
 function triggerCopiedMessage(): Promise<void> {
     inviteButtonText.value = inviteButtonCopiedText;
@@ -41,17 +40,14 @@ function invitePlayer(event: SubmitEvent) {
             "url": shareLink
         }).then(() => {
             return gamesStore.logGameInvite(gameId);
-        }).finally(() => {
-            appStore.needToInvitePlayer = false;
         });
     } else {
         void navigator.clipboard.writeText(shareLink)
             .then(async () => {
-                await gamesStore.logGameInvite(gameId);
                 return triggerCopiedMessage();
             })
-            .finally(() => {
-                appStore.needToInvitePlayer = false;
+            .then(() => {
+                void gamesStore.logGameInvite(gameId);
             });
     }
 
@@ -59,7 +55,7 @@ function invitePlayer(event: SubmitEvent) {
 </script>
 
 <template>
-    <v-dialog v-model="appStore.shouldShowInvitePlayerDialog">
+    <v-dialog v-model="shouldShowInvitePlayerDialog">
         <v-card>
             <v-card-title class="px-5 pt-5 pb-0 d-flex justify-center">
                 <span class="text-h5">Choose A Partner</span>
