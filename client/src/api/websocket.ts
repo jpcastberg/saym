@@ -25,7 +25,7 @@ document.addEventListener("visibilitychange", function () {
 });
 
 function createWebSocketConnection() {
-    return new WebSocket(`ws://${location.host}/websocket`);
+    return new WebSocket(`wss://${location.host}/websocket`);
 }
 
 type EventCallback = (event: GameResponseModel) => void;
