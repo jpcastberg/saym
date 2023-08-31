@@ -1,6 +1,7 @@
 import ws from "ws";
 import cookie from "cookie";
-import { tokensDbApi, usersDbApi, TokenModel } from "./database";
+import usersDbApi from "./database/users";
+import tokensDbApi, { type TokenModel } from "./database/token";
 
 const connections = new Map<string, ws>();
 const wsServer = new ws.Server({ noServer: true }); // noServer delegates the connection upgrade to express

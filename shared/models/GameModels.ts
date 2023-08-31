@@ -1,16 +1,5 @@
 import { type UserModel } from "./UserModels";
 
-export interface GameDbModel {
-    _id: string;
-    playerOneUserId: string;
-    playerTwoUserId: string | null;
-    playerOneTurns: string[];
-    playerTwoTurns: string[];
-    isGameComplete: boolean;
-    needToInvitePlayer: boolean;
-    lastUpdate: string;
-}
-
 export interface GameResponseModel {
     _id: string;
     playerOne: UserModel | null;
@@ -19,6 +8,7 @@ export interface GameResponseModel {
     playerTwoTurns: string[];
     isGameComplete: boolean;
     needToInvitePlayer: boolean;
+    nudgeWasSent: boolean;
     lastUpdate: string;
 }
 
