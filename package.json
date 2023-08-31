@@ -1,6 +1,7 @@
 {
     "author": "john castberg",
     "dependencies": {
+        "@braintree/sanitize-url": "^6.0.4",
         "cookie": "^0.5.0",
         "dotenv": "^16.0.1",
         "express": "^4.17.3",
@@ -8,11 +9,13 @@
         "openai": "^3.3.0",
         "pinia": "^2.1.4",
         "ts-node": "^10.8.0",
-        "underscore": "^1.13.6",
+        "twilio": "^4.16.0",
+        "ua-parser-js": "^1.0.35",
         "vite-plugin-vuetify": "^1.0.2",
         "vue": "^3.3.4",
         "vue-router": "^4.2.4",
         "vuetify": "^3.3.10",
+        "web-push": "^3.6.4",
         "ws": "^8.13.0"
     },
     "devDependencies": {
@@ -25,6 +28,8 @@
         "@types/jest": "^29.5.3",
         "@types/node": "^18.17.0",
         "@types/supertest": "^2.0.12",
+        "@types/ua-parser-js": "^0.7.36",
+        "@types/web-push": "^3.3.2",
         "@types/ws": "^8.5.5",
         "@typescript-eslint/eslint-plugin": "^6.3.0",
         "@typescript-eslint/parser": "^6.3.0",
@@ -52,7 +57,7 @@
     "name": "saym_server",
     "scripts": {
         "dev": "run-p dev-client dev-server",
-        "start": "ts-node-esm --project tsconfig.node.json -r dotenv/config server/src/index.ts",
+        "start": "ts-node --project tsconfig.node.json -r dotenv/config server/src/index.ts",
         "test": "jest --config server/test/jest.config.ts",
         "dev-client": "vite client",
         "dev-server": "DEBUG=express:* nodemon --ext ts --watch server/src --watch shared",
@@ -60,7 +65,7 @@
         "preview": "vite preview",
         "build-only": "vite build",
         "type-check": "vue-tsc --noEmit -p tsconfig.app.json --composite false",
-        "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
+        "lint": "eslint . -c eslint.config.js --fix"
     },
     "version": "1.0.0"
 }
