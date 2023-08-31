@@ -138,7 +138,7 @@ async function turnOnNativeNotifications() {
             userVisibleOnly: true,
             applicationServerKey:
                 "BJSK-EtWwl9dvDnnEbTJo86a9LvOuvEgPSLUEtlKgF1_X-ZrG1omQUlglV7vnsbE6ZmcTuaDB_A6zbbrw5hOoZA",
-        }); // {"endpoint":"https://web.push.apple.com/QCNk4SowYVOTYUhkXiJcl1QOc2YZGCaq6ELL9FDFn-yvxoYADzUTmmsjVwmEgQwU4gsl8zJT9lgCdkKYzTuHWilYR5c6aA-ejY_WW2NhUOPzHVBUAxvs1Zry54GQOHsy4ZmbDiFo-vZczBJugfBM6SLrAZXqGq0GzMp1txXQEeQ","keys":{"p256dh":"BMQbpIVqWrMCn3A5cRm3LPwmzv9XB4_SQA1_TPSKM3lu4iP-iFHnASTVYJgbmqMJcCUbTTli1nWmOCMA5fOa1kA","auth":"S-V3FcMNU0aA5B_j291V5A"}}
+        });
 
         if (subscription) {
             userUpdateBody.pushSubscription = subscription.toJSON();
@@ -158,20 +158,4 @@ async function turnOnSmsNotifications() {
     const userStore = useUserStore();
     if (!userStore.user?.phoneNumber) {
     }
-}
-
-// sourced from https://gist.github.com/Klerith/80abd742d726dd587f4bd5d6a0ab26b6
-function urlBase64ToUint8Array(base64String: string) {
-    var padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-    var base64 = (base64String + padding)
-        .replace(/\-/g, "+")
-        .replace(/_/g, "/");
-
-    var rawData = window.atob(base64);
-    var outputArray = new Uint8Array(rawData.length);
-
-    for (var i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
 }
