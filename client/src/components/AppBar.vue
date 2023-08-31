@@ -24,6 +24,13 @@ const menuItems = [
             appStore.shouldShowAboutDialog = true;
         }
     },
+    {
+        name: "Settings",
+        icon: "mdi-cog",
+        action() {
+            void router.push("/settings");
+        }
+    },
 ];
 
 const icon = computed(getIcon);
@@ -90,7 +97,32 @@ function markGameComplete() {
     if (currentGame) {
         void gamesStore.markGameComplete(currentGame._id);
     }
+}
 
+function canInvite() {
+    const currentGame = getCurrentGame();
+    if (currentGame) {
+        return !currentGame.otherPlayer;
+    }
+}
+
+function sendInvite() {
+    const currentGame = getCurrentGame();
+    if (currentGame) {
+        void gamesStore.invitePlayer(currentGame._id, false);
+    }
+}
+
+function canNudge() {
+    const currentGame = getCurrentGame();
+    return currentGame?.canNudge;
+}
+
+function sendNudge() {
+    const currentGame = getCurrentGame();
+    if (currentGame) {
+        void gamesStore.sendNudge(currentGame._id);
+    }
 }
 
 function handleIconClick() {
@@ -123,8 +155,11 @@ async function createGameAndNavigate() {
                     <v-list-item @click="markGameComplete">
                         Mark game complete
                     </v-list-item>
-                    <v-list-item v-if="!currentGame.otherPlayer">
-                        Send invite TODO
+                    <v-list-item :disabled="!canNudge()" @click="sendNudge">
+                        Nudge {{ getCurrentGame()?.otherPlayer?.username }}
+                    </v-list-item>
+                    <v-list-item v-if="canInvite()" @click="sendInvite">
+                        Send invite
                     </v-list-item>
                 </v-list>
             </v-menu>
