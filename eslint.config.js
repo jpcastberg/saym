@@ -9,16 +9,16 @@ module.exports = [
         languageOptions: {
             parser: vueParser,
             parserOptions: {
+                extraFileExtensions: [".vue"],
                 parser: "@typescript-eslint/parser",
-                tsconfigRootDir: __dirname,
                 project: ["./tsconfig.app.json", "./tsconfig.node.json"],
-                extraFileExtensions: [".vue"]
+                tsconfigRootDir: __dirname,
             }
         },
         plugins: {
-            vue: vuePlugin,
             "@typescript-eslint": typescriptPlugin,
-            import: importPlugin
+            import: importPlugin,
+            vue: vuePlugin,
         },
         rules: {
             ...typescriptPlugin.configs["eslint-recommended"].rules,
@@ -27,16 +27,17 @@ module.exports = [
             ...vuePlugin.configs["vue3-essential"].rules,
             ...vuePlugin.configs["vue3-strongly-recommended"].rules,
             ...vuePlugin.configs["vue3-recommended"].rules,
+            "@typescript-eslint/no-misused-promises": ["error", { "checksVoidReturn": false }],
+            "@typescript-eslint/no-non-null-assertion": "off",
+            "import/consistent-type-specifier-style": ["error", "prefer-inline"],
+            "import/order": "error",
+            "vue/first-attribute-linebreak": "off",
+            "vue/html-closing-bracket-newline": "off",
             "vue/html-indent": "off",
             "vue/max-attributes-per-line": "off",
             "vue/singleline-html-element-content-newline": "off",
-            "vue/first-attribute-linebreak": "off",
-            "vue/html-closing-bracket-newline": "off",
-            "@typescript-eslint/no-misused-promises": ["error", { "checksVoidReturn": false }],
-            "@typescript-eslint/no-non-null-assertion": "off",
             eqeqeq: "error",
-            "import/order": "error",
-            "import/consistent-type-specifier-style": ["error", "prefer-inline"]
+            semi: "error",
         }
     }
 ]
