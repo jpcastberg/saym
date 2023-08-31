@@ -1,88 +1,88 @@
 import { defineStore } from "pinia";
 import {
-    type UserUpdateModel,
-    type UserModel,
+    type PlayerUpdateModel,
+    type PlayerModel,
     type PhoneValidationRequestModel,
     type PhoneValidationResponseModel,
-} from "../../../shared/models/UserModels";
+} from "../../../shared/models/PlayerModels";
 
-interface UserState {
-    isUserFetched: boolean;
-    user: UserModel | null;
+interface PlayerState {
+    isPlayerFetched: boolean;
+    player: PlayerModel | null;
 }
 
 const areNativeNotificationsSupported =
     "serviceWorker" in navigator && "PushManager" in window;
 
-export const useUserStore = defineStore("user", {
-    state: (): UserState => ({
-        isUserFetched: false,
-        user: null,
+export const usePlayerStore = defineStore("player", {
+    state: (): PlayerState => ({
+        isPlayerFetched: false,
+        player: null,
     }),
     getters: {
-        userNeedsInitialization(state): boolean {
+        playerNeedsInitialization(state): boolean {
             return Boolean(
                 this.needsUsername ||
                     // this.needsPhoneNumber ||
                     // this.needsPhoneNumberValidation || // waiting for A2P Registration to complete https://jpc.pw/Xi9RM
                     (areNativeNotificationsSupported &&
-                        state.user?.sendNotifications === null),
+                        state.player?.sendNotifications === null),
             );
         },
         needsUsername(state) {
-            return state.isUserFetched && !state.user?.username;
+            return state.isPlayerFetched && !state.player?.username;
         },
         needsToSetNotifications(state) {
             return (
                 areNativeNotificationsSupported &&
-                state.user?.sendNotifications === null
+                state.player?.sendNotifications === null
             );
         },
         needsPhoneNumber(state) {
             return Boolean(
-                state.user?.sendNotifications &&
+                state.player?.sendNotifications &&
                     !areNativeNotificationsSupported &&
-                    !state.user.phoneNumber,
+                    !state.player.phoneNumber,
             );
         },
         needsPhoneNumberValidation(state) {
             return Boolean(
-                state.user?.sendNotifications &&
+                state.player?.sendNotifications &&
                     !areNativeNotificationsSupported &&
-                    state.user.phoneNumber &&
-                    !state.user.isPhoneNumberValidated,
+                    state.player.phoneNumber &&
+                    !state.player.isPhoneNumberValidated,
             );
         },
     },
     actions: {
-        async initUser(): Promise<void> {
-            if (this.isUserFetched) {
+        async initPlayer(): Promise<void> {
+            if (this.isPlayerFetched) {
                 return;
             }
-            const userResponse = (await fetch("/api/users/me").then(
+            const playerResponse = (await fetch("/api/players/me").then(
                 (response) => response.json(),
-            )) as UserModel;
+            )) as PlayerModel;
 
-            this.user = userResponse;
-            this.isUserFetched = true;
+            this.player = playerResponse;
+            this.isPlayerFetched = true;
         },
         async updateUsername(username: string): Promise<void> {
-            const userUpdateBody: UserUpdateModel = {
+            const playerUpdateBody: PlayerUpdateModel = {
                 username,
             };
-            await updateUser(userUpdateBody);
+            await updatePlayer(playerUpdateBody);
         },
         async updatePhoneNumber(phoneNumber: string): Promise<void> {
-            const userUpdateBody: UserUpdateModel = {
+            const playerUpdateBody: PlayerUpdateModel = {
                 phoneNumber,
             };
-            await updateUser(userUpdateBody);
+            await updatePlayer(playerUpdateBody);
         },
         async verifyPhoneNumber(code: string): Promise<void> {
             const phoneValidationBody: PhoneValidationRequestModel = {
                 code,
             };
-            const response = (await fetch("/api/users/me/validate-phone", {
+            const response = (await fetch("/api/players/me/validate-phone", {
                 headers: {
                     "content-type": "application/json",
                 },
@@ -93,19 +93,19 @@ export const useUserStore = defineStore("user", {
 
             if (response.success) {
                 alert("success!!");
-                this.user = response.user;
+                this.player = response.player;
             }
         },
         async setNotificationPreference(sendNotifications: boolean) {
-            const userUpdateBody: UserUpdateModel = {
+            const playerUpdateBody: PlayerUpdateModel = {
                 sendNotifications,
             };
-            await updateUser(userUpdateBody);
+            await updatePlayer(playerUpdateBody);
 
             if (sendNotifications) {
                 if (areNativeNotificationsSupported) {
                     await turnOnNativeNotifications();
-                } else if (this.user?.phoneNumber) {
+                } else if (this.player?.phoneNumber) {
                     await turnOnSmsNotifications();
                 }
             }
@@ -113,49 +113,49 @@ export const useUserStore = defineStore("user", {
     },
 });
 
-async function updateUser(params: UserUpdateModel) {
-    const userStore = useUserStore();
+async function updatePlayer(params: PlayerUpdateModel) {
+    const playerStore = usePlayerStore();
 
-    userStore.user = (await fetch("/api/users/me", {
+    playerStore.player = (await fetch("/api/players/me", {
         method: "put",
         headers: {
             "content-type": "application/json",
         },
         body: JSON.stringify(params),
-    }).then((response) => response.json())) as UserModel;
+    }).then((response) => response.json())) as PlayerModel;
 }
 
 async function turnOnNativeNotifications() {
     const result = await Notification.requestPermission();
     const sendNotifications = result === "granted";
-    const userUpdateBody: UserUpdateModel = {
+    const playerUpdateBody: PlayerUpdateModel = {
         sendNotifications,
     };
 
     if (sendNotifications) {
         const registration = await navigator.serviceWorker.getRegistration();
         const subscription = await registration?.pushManager.subscribe({
-            userVisibleOnly: true,
+            playerVisibleOnly: true,
             applicationServerKey:
                 "BJSK-EtWwl9dvDnnEbTJo86a9LvOuvEgPSLUEtlKgF1_X-ZrG1omQUlglV7vnsbE6ZmcTuaDB_A6zbbrw5hOoZA",
         });
 
         if (subscription) {
-            userUpdateBody.pushSubscription = subscription.toJSON();
+            playerUpdateBody.pushSubscription = subscription.toJSON();
         }
     }
 
-    await fetch("/api/users/me", {
+    await fetch("/api/players/me", {
         method: "put",
         headers: {
             "content-type": "application/json",
         },
-        body: JSON.stringify(userUpdateBody),
+        body: JSON.stringify(playerUpdateBody),
     });
 }
 
 async function turnOnSmsNotifications() {
-    const userStore = useUserStore();
-    if (!userStore.user?.phoneNumber) {
+    const playerStore = usePlayerStore();
+    if (!playerStore.player?.phoneNumber) {
     }
 }

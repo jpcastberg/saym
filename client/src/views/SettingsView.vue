@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import UAParser from "ua-parser-js";
-import { useUserStore } from '../stores/user';
+import { usePlayerStore } from '../stores/player';
 
-const userStore = useUserStore();
-const notificationsSwitchValue = ref(userStore.user?.sendNotifications);
+const playerStore = usePlayerStore();
+const notificationsSwitchValue = ref(playerStore.player?.sendNotifications);
 
 watch(notificationsSwitchValue, (newValue, oldValue) => {
     const uaParser = new UAParser();

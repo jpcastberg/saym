@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { useGamesStore } from "./games";
-import { useUserStore } from "./user";
+import { usePlayerStore } from "./player";
 
 interface AppState {
     shouldShowAppDrawer: boolean;
@@ -17,33 +17,33 @@ export const useAppStore = defineStore("app", {
     getters: {
         shouldShowInvitePlayerDialog() {
             const gamesStore = useGamesStore();
-            const userStore = useUserStore();
+            const playerStore = usePlayerStore();
             return (
-                !userStore.userNeedsInitialization &&
+                !playerStore.playerNeedsInitialization &&
                 gamesStore.activeGame?.needToInvitePlayer
             );
         },
         shouldShowNewGameDialog() {
             const gamesStore = useGamesStore();
-            const userStore = useUserStore();
+            const playerStore = usePlayerStore();
             return (
-                !userStore.userNeedsInitialization &&
+                !playerStore.playerNeedsInitialization &&
                 gamesStore.currentGames.size === 0
             );
         },
         shouldShowGameNotFoundDialog() {
-            const userStore = useUserStore();
+            const playerStore = usePlayerStore();
             const gamesStore = useGamesStore();
             return (
-                !userStore.userNeedsInitialization &&
+                !playerStore.playerNeedsInitialization &&
                 gamesStore.activeGameNotFound
             );
         },
         shouldShowNotificationsDialog() {
-            const userStore = useUserStore();
+            const playerStore = usePlayerStore();
             return (
-                userStore.user?.sendNotifications === null &&
-                !userStore.needsUsername &&
+                playerStore.player?.sendNotifications === null &&
+                !playerStore.needsUsername &&
                 "serviceWorker" in navigator
             );
         },

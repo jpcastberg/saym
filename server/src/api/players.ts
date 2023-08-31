@@ -1,26 +1,26 @@
 import express, { type Request, type Response } from "express";
 import { type WithId } from "mongodb";
-import usersDbApi from "../database/users";
+import playersDbApi from "../database/players";
 import {
-    type UserUpdateModel,
-    type UserModel,
+    type PlayerUpdateModel,
+    type PlayerModel,
     PhoneValidationRequestModel,
     PhoneValidationResponseModel,
-} from "../../../shared/models/UserModels";
+} from "../../../shared/models/PlayerModels";
 import { type ResponseLocals } from "../models";
 import getRandomIntInclusive from "../utils/getRandomIntInclusive";
 import sendSms from "../utils/sendSms";
 
 const phoneNumberValidationCodes = new Map<string, string>();
-const usersApi = express.Router();
+const playersApi = express.Router();
 
-usersApi.get(
+playersApi.get(
     "/me",
-    async (req, res: Response<WithId<UserModel>, ResponseLocals>) => {
+    async (req, res: Response<WithId<PlayerModel>, ResponseLocals>) => {
         const {
-            locals: { userId },
+            locals: { playerId },
         } = res;
-        const dbResponse = await usersDbApi.get(userId);
+        const dbResponse = await playersDbApi.get(playerId);
         if (dbResponse) {
             res.send(dbResponse);
         } else {
@@ -29,35 +29,35 @@ usersApi.get(
     },
 );
 
-usersApi.put(
+playersApi.put(
     "/me",
     async (
         req: Request<
             Record<string, string>,
-            WithId<UserModel>,
-            UserUpdateModel
+            WithId<PlayerModel>,
+            PlayerUpdateModel
         >,
-        res: Response<WithId<UserModel>, ResponseLocals>,
+        res: Response<WithId<PlayerModel>, ResponseLocals>,
     ) => {
         const {
-            locals: { userId },
+            locals: { playerId },
         } = res;
-        const userUpdateBody: UserUpdateModel = req.body;
-        const phoneNumber = userUpdateBody.phoneNumber
-            ? `+1${userUpdateBody.phoneNumber}`
+        const playerUpdateBody: PlayerUpdateModel = req.body;
+        const phoneNumber = playerUpdateBody.phoneNumber
+            ? `+1${playerUpdateBody.phoneNumber}`
             : null;
-        const dbResponse = await usersDbApi.update(
-            userId,
-            userUpdateBody.username ?? null,
-            userUpdateBody.sendNotifications ?? null,
+        const dbResponse = await playersDbApi.update(
+            playerId,
+            playerUpdateBody.username ?? null,
+            playerUpdateBody.sendNotifications ?? null,
             phoneNumber,
-            userUpdateBody.phoneNumber ? false : null,
-            userUpdateBody.pushSubscription ?? null,
+            playerUpdateBody.phoneNumber ? false : null,
+            playerUpdateBody.pushSubscription ?? null,
         );
 
         if (phoneNumber) {
             console.log(`WE HAVE A PHONE NUMBER: ${phoneNumber}`);
-            sendPhoneNumberValidationCode(userId, phoneNumber);
+            sendPhoneNumberValidationCode(playerId, phoneNumber);
         }
 
         if (dbResponse) {
@@ -68,7 +68,7 @@ usersApi.put(
     },
 );
 
-usersApi.post(
+playersApi.post(
     "/me/validate-phone",
     async (
         req: Request<
@@ -79,15 +79,15 @@ usersApi.post(
         res: Response<PhoneValidationResponseModel, ResponseLocals>,
     ) => {
         const {
-            locals: { userId },
+            locals: { playerId },
         } = res;
         const {
             body: { code },
         } = req;
 
-        if (code === phoneNumberValidationCodes.get(userId)) {
-            const dbResponse = await usersDbApi.update(
-                userId,
+        if (code === phoneNumberValidationCodes.get(playerId)) {
+            const dbResponse = await playersDbApi.update(
+                playerId,
                 null,
                 null,
                 null,
@@ -97,27 +97,27 @@ usersApi.post(
 
             res.send({
                 success: true,
-                user: dbResponse,
+                player: dbResponse,
             });
         } else {
             res.status(400).send({
                 success: false,
-                user: null,
+                player: null,
             });
         }
     },
 );
 
-function sendPhoneNumberValidationCode(userId: string, phoneNumber: string) {
+function sendPhoneNumberValidationCode(playerId: string, phoneNumber: string) {
     let validationCode = "";
 
     while (validationCode.length < 6) {
         validationCode += getRandomIntInclusive(9); // 0-9
     }
 
-    phoneNumberValidationCodes.set(userId, validationCode);
+    phoneNumberValidationCodes.set(playerId, validationCode);
     setTimeout(() => {
-        phoneNumberValidationCodes.delete(userId);
+        phoneNumberValidationCodes.delete(playerId);
     }, 120000); // valid for two minutes
 
     void sendSms(
@@ -128,4 +128,4 @@ function sendPhoneNumberValidationCode(userId: string, phoneNumber: string) {
     );
 }
 
-export default usersApi;
+export default playersApi;

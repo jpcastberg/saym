@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { RouterView } from "vue-router";
-import UserInitializationDialog from "./components/UserInitializationDialog.vue";
+import PlayerInitializationDialog from "./components/PlayerInitializationDialog.vue";
 import AppBar from "./components/AppBar.vue";
 import { useGamesStore } from "./stores/games";
-import { useUserStore } from "./stores/user";
+import { usePlayerStore } from "./stores/player";
 let initializationComplete = ref(false);
 void initialize();
 
 async function initialize() {
-    await useUserStore().initUser();
-    await useGamesStore().initGames(); // game initialization depends on initialized user
+    await usePlayerStore().initPlayer();
+    await useGamesStore().initGames(); // game initialization depends on initialized player
     initializationComplete.value = true;
 }
 </script>
@@ -18,7 +18,7 @@ async function initialize() {
 <template>
     <v-app v-if="initializationComplete">
         <app-bar />
-        <user-initialization-dialog />
+        <player-initialization-dialog />
         <router-view />
     </v-app>
 </template>

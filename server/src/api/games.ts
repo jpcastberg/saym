@@ -19,9 +19,9 @@ gamesApi.get(
     "/",
     async (req, res: Response<AllGamesResponseModel, ResponseLocals>) => {
         const {
-            locals: { userId },
+            locals: { playerId },
         } = res;
-        const allGames = await gamesDbApi.getAll(userId);
+        const allGames = await gamesDbApi.getAll(playerId);
         const response: AllGamesResponseModel = {
             currentGames: [],
             finishedGames: [],
@@ -47,18 +47,18 @@ gamesApi.post(
         res: Response<GameResponseModel, ResponseLocals>,
     ) => {
         const {
-            locals: { userId },
+            locals: { playerId },
         } = res;
         const {
-            body: { playerOneUserId, playerTwoUserId },
+            body: { playerOneId, playerTwoId },
         } = req;
         const newGameResponse = await gamesDbApi.create(
-            playerOneUserId ?? userId,
-            playerTwoUserId ?? null,
+            playerOneId ?? playerId,
+            playerTwoId ?? null,
         );
 
-        if (playerTwoUserId === botName) {
-            await invite(newGameResponse!._id, userId, true);
+        if (playerTwoId === botName) {
+            await invite(newGameResponse!._id, playerId, true);
             scheduleBotTurn(newGameResponse!);
         }
 
@@ -73,9 +73,9 @@ gamesApi.get(
             params: { gameId },
         } = req;
         const {
-            locals: { userId },
+            locals: { playerId },
         } = res;
-        const foundGame = await gamesDbApi.get(gameId, userId);
+        const foundGame = await gamesDbApi.get(gameId, playerId);
         res.send(foundGame ?? void 0);
     },
 );
@@ -87,13 +87,13 @@ gamesApi.post(
             params: { gameId },
         } = req;
         const {
-            locals: { userId },
+            locals: { playerId },
         } = res;
 
         const joinedGame = await gamesDbApi.update(
-            userId,
+            playerId,
             gameId,
-            userId,
+            playerId,
             null,
             null,
             null,
@@ -103,7 +103,7 @@ gamesApi.post(
 
         if (joinedGame) {
             res.send(joinedGame);
-            sendWebsocketGameUpdate(userId, joinedGame);
+            sendWebsocketGameUpdate(playerId, joinedGame);
         } else {
             res.status(404).send();
         }
@@ -125,10 +125,10 @@ gamesApi.post(
             body: { turn },
         } = req;
         const {
-            locals: { userId },
+            locals: { playerId },
         } = res;
 
-        const updatedGame = await addTurnToGame(turn, userId, gameId);
+        const updatedGame = await addTurnToGame(turn, playerId, gameId);
         if (
             !updatedGame.isGameComplete &&
             updatedGame.playerTwo?._id === botName
@@ -146,9 +146,9 @@ gamesApi.post(
             params: { gameId },
         } = req;
         const {
-            locals: { userId },
+            locals: { playerId },
         } = res;
-        const currentGame = await gamesDbApi.get(gameId, userId);
+        const currentGame = await gamesDbApi.get(gameId, playerId);
 
         if (!currentGame) {
             res.status(404).send();
@@ -156,7 +156,7 @@ gamesApi.post(
         }
 
         const completedGame = await gamesDbApi.update(
-            userId,
+            playerId,
             gameId,
             null,
             null,
@@ -168,7 +168,7 @@ gamesApi.post(
 
         if (completedGame) {
             res.send(completedGame);
-            sendWebsocketGameUpdate(userId, completedGame);
+            sendWebsocketGameUpdate(playerId, completedGame);
         } else {
             res.status(500).send();
         }
@@ -182,10 +182,10 @@ gamesApi.post(
             params: { gameId },
         } = req;
         const {
-            locals: { userId },
+            locals: { playerId },
         } = res;
 
-        const updatedGame = await invite(gameId, userId, false);
+        const updatedGame = await invite(gameId, playerId, false);
 
         res.send(updatedGame);
     },
@@ -198,10 +198,10 @@ gamesApi.post(
             params: { gameId },
         } = req;
         const {
-            locals: { userId },
+            locals: { playerId },
         } = res;
 
-        const updatedGame = await invite(gameId, userId, true);
+        const updatedGame = await invite(gameId, playerId, true);
         scheduleBotTurn(updatedGame);
 
         res.send(updatedGame);
@@ -215,13 +215,13 @@ gamesApi.post(
             params: { gameId },
         } = req;
         const {
-            locals: { userId },
+            locals: { playerId },
         } = res;
 
-        const game = await gamesDbApi.get(gameId, userId);
+        const game = await gamesDbApi.get(gameId, playerId);
 
         if (game) {
-            const [currentPlayer, otherPlayer] = isPlayerOne(userId, game)
+            const [currentPlayer, otherPlayer] = isPlayerOne(playerId, game)
                 ? [game.playerOne, game.playerTwo]
                 : [game.playerTwo, game.playerOne];
 
@@ -234,7 +234,7 @@ gamesApi.post(
                 });
 
                 await gamesDbApi.update(
-                    userId,
+                    playerId,
                     gameId,
                     null,
                     null,
@@ -254,11 +254,11 @@ gamesApi.post(
 
 async function invite(
     gameId: string,
-    userId: string,
+    playerId: string,
     inviteBot: boolean,
 ): Promise<GameResponseModel> {
     return new Promise(async (resolve, reject) => {
-        const currentGame = await gamesDbApi.get(gameId, userId);
+        const currentGame = await gamesDbApi.get(gameId, playerId);
 
         if (!currentGame) {
             reject(404);
@@ -266,7 +266,7 @@ async function invite(
         }
 
         const dbResponse = await gamesDbApi.update(
-            userId,
+            playerId,
             gameId,
             inviteBot ? botName : null,
             null,
@@ -284,11 +284,11 @@ async function invite(
 
 async function addTurnToGame(
     turn: string,
-    userId: string,
+    playerId: string,
     gameId: string,
 ): Promise<GameResponseModel> {
     return new Promise(async (resolve, reject) => {
-        const currentGame = await gamesDbApi.get(gameId, userId);
+        const currentGame = await gamesDbApi.get(gameId, playerId);
         const sanitizedTurn = sanitize(turn);
 
         if (!currentGame) {
@@ -306,7 +306,7 @@ async function addTurnToGame(
             playerTwoTurn,
             currentPlayerTurns,
             otherPlayerTurns,
-        ] = isPlayerOne(userId, currentGame)
+        ] = isPlayerOne(playerId, currentGame)
             ? [
                   sanitizedTurn,
                   null,
@@ -340,7 +340,7 @@ async function addTurnToGame(
                 : null; // reset nudge status if we are starting a new round
 
         const updatedGame = await gamesDbApi.update(
-            userId,
+            playerId,
             gameId,
             null,
             playerOneTurn,
@@ -352,7 +352,7 @@ async function addTurnToGame(
 
         if (updatedGame) {
             resolve(updatedGame);
-            sendWebsocketGameUpdate(userId, updatedGame);
+            sendWebsocketGameUpdate(playerId, updatedGame);
         } else {
             reject(500); // todo: replace with real errors
         }
@@ -360,15 +360,15 @@ async function addTurnToGame(
 }
 
 function sendWebsocketGameUpdate(
-    userId: string,
+    playerId: string,
     updatedGame: GameResponseModel,
 ) {
-    const otherPlayerUserId = isPlayerOne(userId, updatedGame)
+    const otherPlayerId = isPlayerOne(playerId, updatedGame)
         ? updatedGame.playerTwo?._id
         : updatedGame.playerOne?._id;
-    if (otherPlayerUserId) {
+    if (otherPlayerId) {
         sendWebsocketMessage(
-            otherPlayerUserId,
+            otherPlayerId,
             JSON.stringify({
                 eventType: "gameUpdate",
                 data: updatedGame,
@@ -377,8 +377,8 @@ function sendWebsocketGameUpdate(
     }
 }
 
-function isPlayerOne(userId: string, game: GameResponseModel) {
-    return game.playerOne?._id === userId;
+function isPlayerOne(playerId: string, game: GameResponseModel) {
+    return game.playerOne?._id === playerId;
 }
 
 function sanitize(turn: string): string {

@@ -1,4 +1,4 @@
 export interface ResponseLocals {
-    userId: string;
+    playerId: string;
     token: string;
 }

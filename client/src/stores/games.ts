@@ -3,15 +3,15 @@ import {
     type AllGamesResponseModel,
     type GameResponseModel,
 } from "../../../shared/models/GameModels";
-import { type PublicUserModel } from "../../../shared/models/UserModels";
+import { type PublicPlayerModel } from "../../../shared/models/PlayerModels";
 import { listenForEvent } from "../api/websocket";
 import router from "../router";
-import { useUserStore } from "./user";
+import { usePlayerStore } from "./player";
 
 export interface ComputedGameModel extends GameResponseModel {
-    otherPlayer: PublicUserModel | null;
+    otherPlayer: PublicPlayerModel | null;
     displayTurns: DisplayTurn[];
-    hasUserPlayedRound: boolean;
+    hasPlayerPlayedRound: boolean;
     uiTitle: string;
     uiSubtitle: string;
     canNudge: boolean;
@@ -150,18 +150,18 @@ export const useGamesStore = defineStore("games", {
             }
         },
         async createGameWithPlayer(
-            playerTwoUserId: string,
+            playerTwoId: string,
         ): Promise<ComputedGameModel> {
             await this.initGames();
             const existingGameWithOtherPlayer = [
                 ...this.currentGames.values(),
-            ].find((game) => game?.otherPlayer?._id === playerTwoUserId);
+            ].find((game) => game?.otherPlayer?._id === playerTwoId);
             if (existingGameWithOtherPlayer) {
                 return existingGameWithOtherPlayer;
             }
             const newGame = (await fetch("/api/games", {
                 method: "post",
-                body: JSON.stringify({ playerTwoUserId }),
+                body: JSON.stringify({ playerTwoId }),
                 headers: { "content-type": "application/json" },
             }).then((response) => response.json())) as GameResponseModel;
             const computedNewGame = computeGameMetadata(newGame);
@@ -170,7 +170,7 @@ export const useGamesStore = defineStore("games", {
             return computedNewGame;
         },
         async invitePlayer(gameId: string, inviteBot: boolean) {
-            const userStore = useUserStore();
+            const playerStore = usePlayerStore();
             if (inviteBot) {
                 return this.inviteBot(gameId);
             }
@@ -181,7 +181,7 @@ export const useGamesStore = defineStore("games", {
             if (isNativeSharingAvailable) {
                 await navigator.share({
                     title: "Come play Saym!",
-                    text: `${userStore.user?.username} is inviting you to play Saym with them. Follow this link to join:`,
+                    text: `${playerStore.player?.username} is inviting you to play Saym with them. Follow this link to join:`,
                     url: shareLink,
                 });
             } else {
@@ -250,7 +250,7 @@ function getDeferred() {
 }
 
 function gamesSortAlgorithm(a: ComputedGameModel, b: ComputedGameModel) {
-    if (!a.hasUserPlayedRound && b.hasUserPlayedRound) {
+    if (!a.hasPlayerPlayedRound && b.hasPlayerPlayedRound) {
         return -1;
     } else if (a.lastUpdate > b.lastUpdate) {
         return -1;
@@ -260,12 +260,12 @@ function gamesSortAlgorithm(a: ComputedGameModel, b: ComputedGameModel) {
 }
 
 function computeGameMetadata(game: GameResponseModel): ComputedGameModel {
-    const userStore = useUserStore();
-    const isPlayerOne = userStore.user?._id === game.playerOne?._id;
+    const playerStore = usePlayerStore();
+    const isPlayerOne = playerStore.player?._id === game.playerOne?._id;
     const [otherPlayer, currentPlayerTurns, otherPlayerTurns] = isPlayerOne
         ? [game.playerTwo, game.playerOneTurns, game.playerTwoTurns]
         : [game.playerOne, game.playerTwoTurns, game.playerOneTurns];
-    const hasUserPlayedRound =
+    const hasPlayerPlayedRound =
         currentPlayerTurns.length === otherPlayerTurns.length + 1;
     const displayTurns: DisplayTurn[] = currentPlayerTurns.map(
         (currentPlayerTurn, idx) => {
@@ -294,7 +294,7 @@ function computeGameMetadata(game: GameResponseModel): ComputedGameModel {
         if (game.isGameComplete) {
             const lastWord = currentPlayerTurns[currentPlayerTurns.length - 1];
             uiSubtitle = `Saym! You both guessed ${lastWord}.`;
-        } else if (hasUserPlayedRound) {
+        } else if (hasPlayerPlayedRound) {
             uiSubtitle = `Waiting for ${
                 otherPlayer.username ?? "your friend"
             } to go`;
@@ -305,7 +305,7 @@ function computeGameMetadata(game: GameResponseModel): ComputedGameModel {
         uiTitle = "Pending Game";
         if (game.needToInvitePlayer) {
             uiSubtitle = "Invite someone to play!";
-        } else if (!hasUserPlayedRound) {
+        } else if (!hasPlayerPlayedRound) {
             uiSubtitle = "Submit your first word while waiting";
         } else {
             uiSubtitle = "Waiting for other player to join...";
@@ -318,7 +318,7 @@ function computeGameMetadata(game: GameResponseModel): ComputedGameModel {
         uiSubtitle,
         otherPlayer,
         displayTurns,
-        hasUserPlayedRound,
+        hasPlayerPlayedRound,
         canNudge,
     };
 

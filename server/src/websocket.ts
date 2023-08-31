@@ -1,6 +1,6 @@
 import ws from "ws";
 import cookie from "cookie";
-import usersDbApi from "./database/users";
+import playersDbApi from "./database/players";
 import tokensDbApi, { type TokenModel } from "./database/token";
 
 const connections = new Map<string, ws>();
@@ -13,20 +13,20 @@ wsServer.on("connection", async (socket, req) => {
     );
 
     if (existingToken) {
-        const existingUser = await usersDbApi.get(existingToken.user_id);
+        const existingPlayer = await playersDbApi.get(existingToken.player_id);
 
-        if (existingUser) {
-            connections.set(existingUser._id, socket);
+        if (existingPlayer) {
+            connections.set(existingPlayer._id, socket);
 
             socket.on("close", () => {
-                connections.delete(existingUser._id);
+                connections.delete(existingPlayer._id);
             });
         }
     }
 });
 
-export function sendWebsocketMessage(userId: string, message: string) {
-    const recipientConnection: ws | undefined = connections.get(userId);
+export function sendWebsocketMessage(playerId: string, message: string) {
+    const recipientConnection: ws | undefined = connections.get(playerId);
 
     if (recipientConnection) {
         recipientConnection.send(message);

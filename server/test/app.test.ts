@@ -74,7 +74,7 @@ describe("Access Tokens", () => {
 });
 
 describe("Games", () => {
-    test("It should allow a user to create a new game", (done) => {
+    test("It should allow a player to create a new game", (done) => {
         void request(runningApp)
             .post("/api/games")
             .then((response: GameResponse) => {
@@ -100,7 +100,7 @@ describe("Games", () => {
             });
     });
 
-    test("It should allow a user to join an existing game", (done) => {
+    test("It should allow a player to join an existing game", (done) => {
         void request(runningApp)
             .post("/api/games")
             .then((response: GameResponse) => {

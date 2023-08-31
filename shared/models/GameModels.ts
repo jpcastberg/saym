@@ -1,9 +1,9 @@
-import { type UserModel } from "./UserModels";
+import { type PlayerModel } from "./PlayerModels";
 
 export interface GameResponseModel {
     _id: string;
-    playerOne: UserModel | null;
-    playerTwo: UserModel | null;
+    playerOne: PlayerModel | null;
+    playerTwo: PlayerModel | null;
     playerOneTurns: string[];
     playerTwoTurns: string[];
     isGameComplete: boolean;
@@ -18,8 +18,8 @@ export interface AllGamesResponseModel {
 }
 
 export interface GameUpdateModel {
-    playerOneUserId?: string;
-    playerTwoUserId?: string | null;
+    playerOneId?: string;
+    playerTwoId?: string | null;
     playerOneTurns?: string[];
     playerTwoTurns?: string[];
 }

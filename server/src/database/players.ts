@@ -1,21 +1,21 @@
 import { type UpdateFilter, type Filter } from "mongodb";
-import { type UserModel } from "../../../shared/models/UserModels";
+import { type PlayerModel } from "../../../shared/models/PlayerModels";
 import generateId from "../utils/idGenerator";
 import { dbConnect } from ".";
 
-class UsersDbApi {
-    async get(userId: string) {
+class PlayersDbApi {
+    async get(playerId: string) {
         const db = await dbConnect();
-        const users = db.collection<UserModel>("users");
-        return users.findOne({
-            _id: userId,
+        const players = db.collection<PlayerModel>("players");
+        return players.findOne({
+            _id: playerId,
         });
     }
 
     async create() {
         const db = await dbConnect();
-        const users = db.collection<UserModel>("users");
-        const newUser: UserModel = {
+        const players = db.collection<PlayerModel>("players");
+        const newPlayer: PlayerModel = {
             _id: generateId(),
             username: null,
             sendNotifications: null,
@@ -24,11 +24,11 @@ class UsersDbApi {
             pushSubscription: null,
         };
 
-        return await users.insertOne(newUser);
+        return await players.insertOne(newPlayer);
     }
 
     async update(
-        userId: string,
+        playerId: string,
         username: string | null,
         sendNotifications: boolean | null,
         phoneNumber: string | null,
@@ -36,7 +36,7 @@ class UsersDbApi {
         pushSubscription: PushSubscriptionJSON | null,
     ) {
         const db = await dbConnect();
-        const users = db.collection<UserModel>("users");
+        const players = db.collection<PlayerModel>("players");
 
         interface SetModel {
             username?: string;
@@ -67,20 +67,20 @@ class UsersDbApi {
         if (pushSubscription) {
             $set.pushSubscription = pushSubscription;
         }
-        const updatedUser: UpdateFilter<UserModel> = {
+        const updatedPlayer: UpdateFilter<PlayerModel> = {
             $set: {
                 ...$set,
             },
         };
-        const filter: Filter<UserModel> = {
-            _id: userId,
+        const filter: Filter<PlayerModel> = {
+            _id: playerId,
         };
 
-        await users.updateOne(filter, updatedUser);
-        return this.get(userId);
+        await players.updateOne(filter, updatedPlayer);
+        return this.get(playerId);
     }
 }
 
-const usersDbApi = new UsersDbApi();
+const playersDbApi = new PlayersDbApi();
 
-export default usersDbApi;
+export default playersDbApi;

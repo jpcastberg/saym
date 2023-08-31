@@ -3,8 +3,8 @@ import { Request, Response, NextFunction } from "express";
 import cookie from "cookie";
 import { InsertOneResult } from "mongodb";
 import tokensDbApi, { type TokenModel } from "../database/token";
-import usersDbApi from "../database/users";
-import { type UserModel } from "../../../shared/models/UserModels";
+import playersDbApi from "../database/players";
+import { type PlayerModel } from "../../../shared/models/PlayerModels";
 import { ResponseLocals } from "../models";
 
 export default async (
@@ -22,18 +22,18 @@ export default async (
 
         if (existingToken) {
             res.locals.token = existingToken.token;
-            res.locals.userId = existingToken.user_id;
+            res.locals.playerId = existingToken.player_id;
         }
     } else {
-        const userCreateResponse: InsertOneResult<UserModel> =
-            await usersDbApi.create();
-        const userId = userCreateResponse.insertedId;
+        const playerCreateResponse: InsertOneResult<PlayerModel> =
+            await playersDbApi.create();
+        const playerId = playerCreateResponse.insertedId;
 
-        res.locals.userId = userId;
+        res.locals.playerId = playerId;
         const newAccessToken = createToken();
-        await tokensDbApi.create(newAccessToken, userId);
+        await tokensDbApi.create(newAccessToken, playerId);
         console.log(
-            `set new access token: ${newAccessToken}, for user: ${userId}`,
+            `set new access token: ${newAccessToken}, for player: ${playerId}`,
         );
         res.locals.token = newAccessToken;
     }

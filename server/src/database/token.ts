@@ -3,7 +3,7 @@ import { dbConnect } from ".";
 
 export interface TokenModel {
     _id: string;
-    user_id: string;
+    player_id: string;
     token: string;
 }
 
@@ -16,12 +16,12 @@ class TokensDbApi {
         });
     }
 
-    async create(token: string, userId: string) {
+    async create(token: string, playerId: string) {
         const db = await dbConnect();
         const tokens = db.collection<TokenModel>("tokens");
         const newToken: TokenModel = {
             _id: generateId(),
-            user_id: userId,
+            player_id: playerId,
             token,
         };
 

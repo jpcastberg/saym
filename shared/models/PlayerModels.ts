@@ -1,16 +1,16 @@
-export interface PublicUserModel {
+export interface PublicPlayerModel {
     _id: string;
     username: string | null;
     sendNotifications: boolean | null;
 }
 
-export interface UserModel extends PublicUserModel {
+export interface PlayerModel extends PublicPlayerModel {
     phoneNumber: string | null;
     isPhoneNumberValidated: boolean;
     pushSubscription: PushSubscriptionJSON | null;
 }
 
-export interface UserUpdateModel {
+export interface PlayerUpdateModel {
     username?: string;
     sendNotifications?: boolean;
     phoneNumber?: string;
@@ -23,5 +23,5 @@ export interface PhoneValidationRequestModel {
 
 export interface PhoneValidationResponseModel {
     success: boolean;
-    user: UserModel | null;
+    player: PlayerModel | null;
 }

@@ -1,12 +1,13 @@
 import { type UpdateFilter, type Filter, type Document } from "mongodb";
 import { type GameResponseModel } from "../../../shared/models/GameModels";
 import generateId from "../utils/idGenerator";
+import getPlayerFilterExpression from "../utils/getPlayerFilterExpression";
 import { dbConnect } from ".";
 
 export interface GameDbModel {
     _id: string;
-    playerOneUserId: string;
-    playerTwoUserId: string | null;
+    playerOneId: string;
+    playerTwoId: string | null;
     playerOneTurns: string[];
     playerTwoTurns: string[];
     isGameComplete: boolean;
@@ -18,40 +19,40 @@ export interface GameDbModel {
 class GamesDbApi {
     async get(
         gameId: string,
-        userId: string,
+        playerId: string,
     ): Promise<GameResponseModel | undefined> {
-        const matches = await this.getMatches(gameId, userId, false);
+        const matches = await this.getMatches(gameId, playerId, false);
         return matches[0];
     }
 
-    async getAll(userId: string): Promise<GameResponseModel[]> {
-        return await this.getMatches(null, userId, false);
+    async getAll(playerId: string): Promise<GameResponseModel[]> {
+        return await this.getMatches(null, playerId, false);
     }
 
-    async create(playerOneUserId: string, playerTwoUserId: string | null) {
+    async create(playerOneId: string, playerTwoId: string | null) {
         const db = await dbConnect();
         const games = db.collection<GameDbModel>("games");
         const newGameId = generateId();
         const newGame: GameDbModel = {
             _id: newGameId,
-            playerOneUserId: playerOneUserId,
-            playerTwoUserId: playerTwoUserId,
+            playerOneId: playerOneId,
+            playerTwoId: playerTwoId,
             playerOneTurns: [],
             playerTwoTurns: [],
             isGameComplete: false,
-            needToInvitePlayer: !playerTwoUserId,
+            needToInvitePlayer: !playerTwoId,
             nudgeWasSent: false,
             lastUpdate: new Date().toISOString(),
         };
 
         await games.insertOne(newGame);
-        return this.get(newGameId, playerOneUserId);
+        return this.get(newGameId, playerOneId);
     }
 
     async update(
-        userId: string,
+        playerId: string,
         gameId: string,
-        playerTwoUserId: string | null,
+        playerTwoId: string | null,
         playerOneTurn: string | null,
         playerTwoTurn: string | null,
         needToInvitePlayer: boolean | null,
@@ -62,11 +63,11 @@ class GamesDbApi {
         const games = db.collection<GameDbModel>("games");
         const filter: Filter<GameDbModel> = {
             _id: gameId,
-            $or: getPlayerFilterExpression(userId, Boolean(playerTwoUserId)),
+            $or: getPlayerFilterExpression(playerId, Boolean(playerTwoId)),
         };
 
         interface SetModel {
-            playerTwoUserId?: string;
+            playerTwoId?: string;
             isGameComplete?: boolean;
             needToInvitePlayer?: boolean;
             nudgeWasSent?: boolean;
@@ -86,10 +87,10 @@ class GamesDbApi {
             $set.nudgeWasSent = nudgeWasSent;
         }
 
-        if (playerTwoUserId) {
-            $set.playerTwoUserId = playerTwoUserId;
+        if (playerTwoId) {
+            $set.playerTwoId = playerTwoId;
             $set.needToInvitePlayer = false;
-            filter.playerTwoUserId = {
+            filter.playerTwoId = {
                 $eq: null,
             };
         }
@@ -114,18 +115,18 @@ class GamesDbApi {
 
         await games.updateOne(filter, gameUpdates);
 
-        return await this.get(gameId, userId);
+        return await this.get(gameId, playerId);
     }
 
     private async getMatches(
         gameId: string | null,
-        userId: string,
+        playerId: string,
         isPlayerTwoJoining: boolean | null,
     ) {
         const db = await dbConnect();
         const games = db.collection<GameDbModel>("games");
         const matchAggregation: Document = {
-            $or: getPlayerFilterExpression(userId, isPlayerTwoJoining),
+            $or: getPlayerFilterExpression(playerId, isPlayerTwoJoining),
         };
 
         if (gameId) {
@@ -139,16 +140,16 @@ class GamesDbApi {
                 },
                 {
                     $lookup: {
-                        from: "users",
-                        localField: "playerOneUserId",
+                        from: "players",
+                        localField: "playerOneId",
                         foreignField: "_id",
                         as: "playerOneArr",
                     },
                 },
                 {
                     $lookup: {
-                        from: "users",
-                        localField: "playerTwoUserId",
+                        from: "players",
+                        localField: "playerTwoId",
                         foreignField: "_id",
                         as: "playerTwoArr",
                     },
@@ -165,8 +166,8 @@ class GamesDbApi {
                 },
                 {
                     $unset: [
-                        "playerOneUserId",
-                        "playerTwoUserId",
+                        "playerOneId",
+                        "playerTwoId",
                         "playerOneArr",
                         "playerTwoArr",
                         "playerOne.phoneNumber",
@@ -185,20 +186,6 @@ class GamesDbApi {
             ])
             .toArray()) as GameResponseModel[];
     }
-}
-
-function getPlayerFilterExpression(
-    userId: string,
-    isPlayerTwoJoining: boolean | null,
-) {
-    return [
-        {
-            playerOneUserId: userId,
-        },
-        {
-            playerTwoUserId: isPlayerTwoJoining ? null : userId,
-        },
-    ];
 }
 
 const gamesDbApi = new GamesDbApi();

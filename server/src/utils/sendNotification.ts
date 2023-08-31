@@ -1,5 +1,5 @@
 import webPush from "web-push";
-import usersDbApi from "../database/users";
+import playersDbApi from "../database/players";
 import { type PushNotificationModel } from "../../../shared/models/NotificationModels";
 import sendSms from "./sendSms";
 
@@ -17,19 +17,19 @@ webPush.setVapidDetails(
 );
 
 async function sendNotification(
-    userId: string,
+    playerId: string,
     notification: NotificationModel,
 ) {
-    const user = await usersDbApi.get(userId);
+    const player = await playersDbApi.get(playerId);
 
-    if (!user?.sendNotifications) {
+    if (!player?.sendNotifications) {
         return;
     }
 
-    if (user.pushSubscription) {
+    if (player.pushSubscription) {
         console.log(
-            "sending notification to user:",
-            user,
+            "sending notification to player:",
+            player,
             "message:",
             notification,
         );
@@ -40,16 +40,16 @@ async function sendNotification(
         };
         await webPush.sendNotification(
             {
-                endpoint: user.pushSubscription.endpoint!,
+                endpoint: player.pushSubscription.endpoint!,
                 keys: {
-                    p256dh: user.pushSubscription.keys!.p256dh,
-                    auth: user.pushSubscription.keys!.auth,
+                    p256dh: player.pushSubscription.keys!.p256dh,
+                    auth: player.pushSubscription.keys!.auth,
                 },
             },
             JSON.stringify(pushNotification),
         );
-    } else if (user.phoneNumber && user.isPhoneNumberValidated) {
-        await sendSms(user.phoneNumber, notification.smsMessage);
+    } else if (player.phoneNumber && player.isPhoneNumberValidated) {
+        await sendSms(player.phoneNumber, notification.smsMessage);
     }
 }
 

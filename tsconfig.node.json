@@ -21,6 +21,6 @@
     "include": [
         "./server/src/**/*",
         "./server/test/**/*",
-        "./shared/models/*"
+        "./shared/**/*"
     ]
 }

@@ -5,7 +5,7 @@ import {
     type MongoClientOptions,
     ServerApiVersion,
 } from "mongodb";
-import { type UserModel } from "../../../shared/models/UserModels";
+import { type PlayerModel } from "../../../shared/models/PlayerModels";
 
 const mongoUri: string =
     "mongodb+srv://" +
@@ -40,11 +40,11 @@ export const botName = "Saymbot";
 
 async function initBot() {
     const db = await dbConnect();
-    const users = db.collection<UserModel>("users");
-    const filter: Filter<UserModel> = {
+    const players = db.collection<PlayerModel>("players");
+    const filter: Filter<PlayerModel> = {
         _id: botName,
     };
-    const bot: UserModel = {
+    const bot: PlayerModel = {
         _id: botName,
         username: botName,
         sendNotifications: false,
@@ -52,7 +52,7 @@ async function initBot() {
         isPhoneNumberValidated: false,
         pushSubscription: null,
     };
-    void users.replaceOne(filter, bot, {
+    void players.replaceOne(filter, bot, {
         upsert: true,
     });
 }

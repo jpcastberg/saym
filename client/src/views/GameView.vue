@@ -119,14 +119,14 @@ async function continuePlayingWithOtherPlayer() {
                         Keep playing with {{ gamesStore.activeGame.otherPlayer?.username }}
                     </v-btn>
                 </v-card>
-                <v-card v-else-if="gamesStore.activeGame.hasUserPlayedRound && !gamesStore.activeGame.isGameComplete"
+                <v-card v-else-if="gamesStore.activeGame.hasPlayerPlayedRound && !gamesStore.activeGame.isGameComplete"
                     class="text-center">
                     <v-card-text>
                         Waiting for {{ gamesStore.activeGame.otherPlayer?.username || "your friend" }} to
                         {{ gamesStore.activeGame.otherPlayer ? "go" : "join" }}
                     </v-card-text>
                 </v-card>
-                <v-form v-else-if="!gamesStore.activeGame.hasUserPlayedRound && !gamesStore.activeGame.isGameComplete"
+                <v-form v-else-if="!gamesStore.activeGame.hasPlayerPlayedRound && !gamesStore.activeGame.isGameComplete"
                     class="d-flex align-center justify-center turn-input" @submit.prevent="handleTurnFormSubmit">
                     <v-text-field v-model="turnInput" persistent-clear clearable hide-details="auto" variant="solo"
                         :label="getFormPrompt()" required @click:clear="clearTurnInput" @focus="scrollInputIntoView" />

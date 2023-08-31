@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import { useUserStore } from "../stores/user";
-const userStore = useUserStore();
+import { usePlayerStore } from "../stores/player";
+const playerStore = usePlayerStore();
 const usernameInput = ref("");
 const phoneNumberInput = ref("");
 const oneTimeCodeForm = ref<HTMLFormElement | null>(null);
@@ -9,29 +9,29 @@ const oneTimeCodeInput = ref<HTMLInputElement | null>(null);
 const oneTimeCodeInputValue = ref("");
 
 async function setUsername() {
-    await userStore.updateUsername(usernameInput.value);
+    await playerStore.updateUsername(usernameInput.value);
 }
 
 async function setNotificationPreference(event: SubmitEvent) {
     const sendNotifications = event.submitter?.id === "notification-preference-true";
-    await userStore.setNotificationPreference(sendNotifications);
+    await playerStore.setNotificationPreference(sendNotifications);
 }
 
 async function setPhoneNumber(event: SubmitEvent) {
     const submitPhoneNumber = event.submitter?.id === "submit-phone-number";
     if (submitPhoneNumber) {
-        await userStore.updatePhoneNumber(phoneNumberInput.value);
+        await playerStore.updatePhoneNumber(phoneNumberInput.value);
         if ("OTPCredential" in window) {
             await autoSubmitOtp();
         }
     } else {
-        await userStore.setNotificationPreference(false);
+        await playerStore.setNotificationPreference(false);
     }
 }
 
 async function submitOneTimeCode(event: SubmitEvent) {
     event.preventDefault();
-    await userStore.verifyPhoneNumber(oneTimeCodeInputValue.value);
+    await playerStore.verifyPhoneNumber(oneTimeCodeInputValue.value);
 }
 
 async function autoSubmitOtp() {
@@ -63,8 +63,8 @@ async function autoSubmitOtp() {
 </script>
 
 <template>
-    <v-dialog v-model="userStore.userNeedsInitialization">
-        <v-card v-if="userStore.needsUsername">
+    <v-dialog v-model="playerStore.playerNeedsInitialization">
+        <v-card v-if="playerStore.needsUsername">
             <v-card-title class="px-5 pt-5 pb-0 d-flex justify-center">
                 <span class="text-h5">Welcome to Saym!</span>
             </v-card-title>
@@ -79,7 +79,7 @@ async function autoSubmitOtp() {
                 </v-card-actions>
             </v-form>
         </v-card>
-        <v-card v-else-if="userStore.needsToSetNotifications">
+        <v-card v-else-if="playerStore.needsToSetNotifications">
             <v-card-title class="px-5 pt-5 pb-0 d-flex justify-center">
                 <span class="text-h5">Receive Notifications?</span>
             </v-card-title>
@@ -95,7 +95,7 @@ async function autoSubmitOtp() {
                 </v-card-actions>
             </v-form>
         </v-card>
-        <v-card v-else-if="userStore.needsPhoneNumber">
+        <v-card v-else-if="playerStore.needsPhoneNumber">
             <v-card-title class="px-5 pt-5 pb-0 d-flex justify-center">
                 <span class="text-h5">Enter Your Phone Number</span>
             </v-card-title>
@@ -113,7 +113,7 @@ async function autoSubmitOtp() {
                 </v-card-actions>
             </v-form>
         </v-card>
-        <v-card v-else-if="userStore.needsPhoneNumberValidation">
+        <v-card v-else-if="playerStore.needsPhoneNumberValidation">
             <v-card-title class="px-5 pt-5 pb-0 d-flex justify-center">
                 <span class="text-h5">Enter Your One Time Code</span>
             </v-card-title>
