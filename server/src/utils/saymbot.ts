@@ -1,24 +1,35 @@
+import fs from "fs";
+import path from "path";
 import { Configuration, OpenAIApi } from "openai";
 import { type GameResponseModel } from "../../../shared/models/GameModels";
+import getRandomIntInclusive from "./getRandomIntInclusive";
 const configuration = new Configuration({
     apiKey: process.env.OPENAI_API_KEY,
 });
 const openai = new OpenAIApi(configuration);
-const prompt =
-    "You will be given a comma separated list of words. " +
-    "Based on the content of each item in the list, " +
-    "generate a single word that matches the theme. " +
-    "Favor words toward the end of the list. If you are given the message '<empty list>', " +
-    "respond with a random but common word.";
-export async function generateTurn(game: GameResponseModel): Promise<string> {
-    const wordList =
-        game.playerTwoTurns.reduce((acc, turn, idx) => {
-            acc += `${game.playerOneTurns[idx]},${turn}${
-                idx < game.playerTwoTurns.length - 1 ? "," : ""
-            }`;
+const prompt = "Complete the list with a single word.";
+const randomWordList = fs
+    .readFileSync(path.resolve(__dirname, "randomWords.txt"))
+    .toString("utf-8")
+    .trim()
+    .split("\n");
 
-            return acc;
-        }, "") || "<empty list>";
+function getRandomWord() {
+    return randomWordList[getRandomIntInclusive(randomWordList.length)];
+}
+
+export async function generateTurn(game: GameResponseModel): Promise<string> {
+    if (!game.playerTwoTurns.length) {
+        return getRandomWord();
+    }
+
+    const wordList = game.playerTwoTurns.reduce((acc, turn, idx) => {
+        acc += `${game.playerOneTurns[idx]},${turn}${
+            idx < game.playerTwoTurns.length - 1 ? "," : ""
+        }`;
+
+        return acc;
+    }, "");
 
     console.log("passing word list to bot:", wordList);
 
@@ -41,6 +52,5 @@ export async function generateTurn(game: GameResponseModel): Promise<string> {
         presence_penalty: 0,
     });
 
-    console.log(JSON.stringify(response.data));
-    return response.data.choices[0].message?.content ?? "Spaghetti";
+    return response.data.choices[0].message?.content ?? "Spaghetti"; // 🍝
 }
