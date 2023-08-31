@@ -2,6 +2,11 @@
     "compilerOptions": {
         "alwaysStrict": true,
         "composite": true,
+        "lib": [
+            "ESNext",
+            "DOM",
+            "WebWorker"
+        ],
         "module": "ESNext",
         "moduleResolution": "Bundler",
         "noImplicitAny": true,
