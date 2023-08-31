@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useGamesStore } from "../stores/games";
-import { useUserStore } from "../stores/user";
 import { type ComputedGameModel } from "../stores/games";
 const props = defineProps<{
     gameNeedingInvite: ComputedGameModel
 }>();
-const userStore = useUserStore();
 const gamesStore = useGamesStore();
 const isNativeSharingAvailable = "share" in navigator;
 const defaultInviteButtonText = isNativeSharingAvailable ? "Invite Player" : "Invite With Url";
@@ -23,34 +21,17 @@ function triggerCopiedMessage(): Promise<void> {
     });
 }
 
-function invitePlayer(event: SubmitEvent) {
+async function invitePlayer(event: SubmitEvent) {
     const gameId = props.gameNeedingInvite._id;
+    const inviteBot = event.submitter?.id === "bot-button";
 
-    if (event.submitter?.id === "bot-button") {
-        void gamesStore.inviteBot(gameId);
-        return;
+    await gamesStore.invitePlayer(gameId, inviteBot);
+
+    if (!isNativeSharingAvailable) {
+        await triggerCopiedMessage();
     }
 
-    const shareLink = `${location.protocol}//${location.host}/games/${gameId}`;
-
-    if (isNativeSharingAvailable) {
-        void navigator.share({
-            "title": "Come play Saym!",
-            "text": `${userStore.username} is inviting you to play Saym with them. Follow this link to join:`,
-            "url": shareLink
-        }).then(() => {
-            return gamesStore.logGameInvite(gameId);
-        });
-    } else {
-        void navigator.clipboard.writeText(shareLink)
-            .then(async () => {
-                return triggerCopiedMessage();
-            })
-            .then(() => {
-                void gamesStore.logGameInvite(gameId);
-            });
-    }
-
+    await gamesStore.logGameInvite(gameId);
 }
 </script>
 

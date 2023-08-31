@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAppStore } from '../stores/app';
 import { useGamesStore } from '../stores/games';
@@ -7,12 +6,8 @@ const appStore = useAppStore();
 const gamesStore = useGamesStore();
 const router = useRouter();
 
-onUnmounted(() => {
-    appStore.isGameNotFound = false;
-});
-
 async function createGameAndNavigate() {
-    appStore.isGameNotFound = false;
+    gamesStore.activeGameNotFound = false;
     const newGame = await gamesStore.createGame();
     await router.push(`/games/${newGame._id}`);
 }
