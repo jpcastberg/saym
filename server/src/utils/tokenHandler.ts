@@ -2,9 +2,10 @@ import crypto from "crypto";
 import { Request, Response, NextFunction } from "express";
 import cookie from "cookie";
 import { InsertOneResult } from "mongodb";
-import { tokensDbApi, usersDbApi, type TokenModel } from "../database";
+import tokensDbApi, { type TokenModel } from "../database/token";
+import usersDbApi from "../database/users";
 import { type UserModel } from "../../../shared/models/UserModels";
-import { ResponseLocals } from "../models/models";
+import { ResponseLocals } from "../models";
 
 export default async (
     req: Request,
@@ -25,7 +26,7 @@ export default async (
         }
     } else {
         const userCreateResponse: InsertOneResult<UserModel> =
-            await usersDbApi.create("");
+            await usersDbApi.create();
         const userId = userCreateResponse.insertedId;
 
         res.locals.userId = userId;
