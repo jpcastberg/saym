@@ -13,13 +13,20 @@ export default defineConfig({
         vueJsx(),
         vuetify({ autoImport: true }),
         VitePWA({
+            strategies: "injectManifest",
             injectRegister: "auto",
             registerType: "autoUpdate",
+            srcDir: "src",
+            filename: "serviceWorker.ts",
             manifest: {
                 name: "Saym",
                 short_name: "Saym",
                 description: "A word guessing game for you and your friends",
                 theme_color: "#00897b",
+                display: "minimal-ui",
+                /* ^^ can't use standalone here, ios doesn't yet support opening links in an associated pwa -
+                so even if a user installs a pwa, clicking an invite from their friend would send them to the default browser.
+                see: https://web.dev/learn/pwa/os-integration/#url-handling */
                 icons: [
                     {
                         src: "pwa-192x192.png",
@@ -35,6 +42,7 @@ export default defineConfig({
             },
             devOptions: {
                 enabled: true,
+                type: "module",
             },
         }),
     ],
