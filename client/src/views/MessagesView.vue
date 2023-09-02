@@ -79,8 +79,11 @@ function getMessageClass(message: MessageModel) {
         <template v-if="gamesStore.activeGame">
             <div class="h-100 d-flex flex-column justify-space-between pa-2">
                 <div ref="scrollContainer" class="d-flex flex-column align-end scroll-container">
-                    <template v-for="message in gamesStore.activeGame.messages" :key="message._id">
-                        <span :class="`message ${getMessageClass(message)}`">{{ message.text }}</span>
+                    <template v-for="message, idx in gamesStore.activeGame.messages" :key="message._id">
+                        <span
+                            :class="`message ${idx === gamesStore.activeGame.messages.length - 1 ? 'mb-0' : 'mb-2'} ${getMessageClass(message)}`">
+                            {{ message.text }}
+                        </span>
                     </template>
                 </div>
                 <v-form class="d-flex align-center justify-center py-2 text-input"
