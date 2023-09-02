@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
-import { ref } from 'vue';
+import { computed } from 'vue';
 import { useGamesStore } from '../stores/games';
 import { usePlayerStore } from '../stores/player';
 const gamesStore = useGamesStore();
 const router = useRouter();
 const playerStore = usePlayerStore();
-const shouldShowNewGameDialog = ref(!playerStore.playerNeedsInitialization &&
-    gamesStore.currentGames.size === 0);
+const shouldShowNewGameDialog = computed(() => {
+    return !playerStore.playerNeedsInitialization &&
+        gamesStore.currentGames.size === 0;
+});
 
 async function createGameAndNavigate() {
     const newGame = await gamesStore.createGame();
