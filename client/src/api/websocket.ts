@@ -19,9 +19,7 @@ socket.onmessage = (event: MessageEvent) => {
 };
 
 document.addEventListener("visibilitychange", function () {
-    if (socket.readyState !== WebSocket.OPEN) {
-        socket = createWebSocketConnection();
-    }
+    ensureWebsocketConnected();
 });
 
 function createWebSocketConnection() {
@@ -44,5 +42,11 @@ export { eventNames };
 export function listenForEvent(eventName: string, callback: EventCallback) {
     if (eventNames.has(eventName)) {
         eventListeners[eventName].push(callback);
+    }
+}
+
+export function ensureWebsocketConnected() {
+    if (socket.readyState !== WebSocket.OPEN) {
+        socket = createWebSocketConnection();
     }
 }

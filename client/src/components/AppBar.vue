@@ -7,6 +7,7 @@ import { useAppStore } from "../stores/app";
 import { useGamesStore } from "../stores/games";
 import { usePlayerStore } from "../stores/player";
 import { botName } from "../../../shared/models/PlayerModels";
+import { ensureWebsocketConnected } from "../api/websocket";
 
 const appStore = useAppStore();
 const playerStore = usePlayerStore();
@@ -103,6 +104,8 @@ function refreshGame() {
     if (currentGame) {
         void gamesStore.refreshGame(currentGame._id);
     }
+
+    ensureWebsocketConnected();
 }
 
 function shouldShowMarkGameComplete() {

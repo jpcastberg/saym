@@ -4,6 +4,7 @@ import ActiveGamesView from "../views/ActiveGamesView.vue";
 import GameView from "../views/GameView.vue";
 import MessagesView from "../views/MessagesView.vue";
 import SettingsView from "../views/SettingsView.vue";
+import { ensureWebsocketConnected } from "../api/websocket";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -47,5 +48,7 @@ export async function goBack() {
         await router.replace("/");
     }
 }
+
+router.afterEach(ensureWebsocketConnected);
 
 export default router;
