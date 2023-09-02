@@ -3,26 +3,26 @@ import { dbConnect } from ".";
 
 export interface TokenModel {
     _id: string;
-    player_id: string;
-    token: string;
+    playerId: string;
+    value: string;
 }
 
 class TokensDbApi {
-    async get(token: string) {
+    async get(tokenValue: string) {
         const db = await dbConnect();
         const tokens = db.collection<TokenModel>("tokens");
         return await tokens.findOne({
-            token,
+            value: tokenValue,
         });
     }
 
-    async create(token: string, playerId: string) {
+    async create(tokenValue: string, playerId: string) {
         const db = await dbConnect();
         const tokens = db.collection<TokenModel>("tokens");
         const newToken: TokenModel = {
             _id: generateId(),
-            player_id: playerId,
-            token,
+            playerId: playerId,
+            value: tokenValue,
         };
 
         return await tokens.insertOne(newToken);

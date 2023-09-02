@@ -16,7 +16,7 @@ async function initialize() {
 </script>
 
 <template>
-    <v-app v-if="initializationComplete">
+    <v-app class="h-screen" v-if="initializationComplete">
         <app-bar />
         <player-initialization-dialog />
         <router-view />
@@ -24,4 +24,8 @@ async function initialize() {
 </template>
 
 <style scoped>
+.v-application {
+    /* background-color: aqua !important; */
+    max-height: 100vh;
+}
 </style>

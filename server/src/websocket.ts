@@ -13,7 +13,7 @@ wsServer.on("connection", async (socket, req) => {
     );
 
     if (existingToken) {
-        const existingPlayer = await playersDbApi.get(existingToken.player_id);
+        const existingPlayer = await playersDbApi.get(existingToken.playerId);
 
         if (existingPlayer) {
             connections.set(existingPlayer._id, socket);

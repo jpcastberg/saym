@@ -41,7 +41,7 @@ export async function generateTurn(game: GameResponseModel): Promise<string> {
                 content: prompt,
             },
             {
-                role: "player",
+                role: "user",
                 content: wordList,
             },
         ],

@@ -1,3 +1,5 @@
+export const botName = "Saymbot";
+
 export interface PublicPlayerModel {
     _id: string;
     username: string | null;

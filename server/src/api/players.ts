@@ -20,9 +20,9 @@ playersApi.get(
         const {
             locals: { playerId },
         } = res;
-        const dbResponse = await playersDbApi.get(playerId);
-        if (dbResponse) {
-            res.send(dbResponse);
+        const player = await playersDbApi.get(playerId);
+        if (player) {
+            res.send(player);
         } else {
             res.status(404).send();
         }
@@ -46,9 +46,9 @@ playersApi.put(
         const phoneNumber = playerUpdateBody.phoneNumber
             ? `+1${playerUpdateBody.phoneNumber}`
             : null;
-        const dbResponse = await playersDbApi.update(
+        const updatedPlayer = await playersDbApi.update(
             playerId,
-            playerUpdateBody.username ?? null,
+            playerUpdateBody.username?.slice(0, 25) ?? null,
             playerUpdateBody.sendNotifications ?? null,
             phoneNumber,
             playerUpdateBody.phoneNumber ? false : null,
@@ -60,8 +60,8 @@ playersApi.put(
             sendPhoneNumberValidationCode(playerId, phoneNumber);
         }
 
-        if (dbResponse) {
-            res.send(dbResponse);
+        if (updatedPlayer) {
+            res.send(updatedPlayer);
         } else {
             res.status(404).send();
         }

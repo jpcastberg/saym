@@ -23,14 +23,6 @@ export const useAppStore = defineStore("app", {
                 gamesStore.activeGame?.needToInvitePlayer
             );
         },
-        shouldShowNewGameDialog() {
-            const gamesStore = useGamesStore();
-            const playerStore = usePlayerStore();
-            return (
-                !playerStore.playerNeedsInitialization &&
-                gamesStore.currentGames.size === 0
-            );
-        },
         shouldShowGameNotFoundDialog() {
             const playerStore = usePlayerStore();
             const gamesStore = useGamesStore();
@@ -39,12 +31,22 @@ export const useAppStore = defineStore("app", {
                 gamesStore.activeGameNotFound
             );
         },
+        areNativeNotificationsSupported() {
+            return "serviceWorker" in navigator && "PushManager" in window;
+        },
         shouldShowNotificationsDialog() {
             const playerStore = usePlayerStore();
             return (
                 playerStore.player?.sendNotifications === null &&
                 !playerStore.needsUsername &&
                 "serviceWorker" in navigator
+            );
+        },
+        shouldShowNotificationSettingsToggle(): boolean {
+            const playerStore = usePlayerStore();
+            return (
+                this.areNativeNotificationsSupported ||
+                playerStore.player?.sendNotifications !== null
             );
         },
     },

@@ -5,7 +5,7 @@ import {
     type MongoClientOptions,
     ServerApiVersion,
 } from "mongodb";
-import { type PlayerModel } from "../../../shared/models/PlayerModels";
+import { botName, type PlayerModel } from "../../../shared/models/PlayerModels";
 
 const mongoUri: string =
     "mongodb+srv://" +
@@ -35,8 +35,6 @@ export async function dbConnect() {
     dbConnection = client.db("saym");
     return dbConnection;
 }
-
-export const botName = "Saymbot";
 
 async function initBot() {
     const db = await dbConnect();

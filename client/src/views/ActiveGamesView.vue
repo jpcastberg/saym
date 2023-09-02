@@ -16,7 +16,7 @@ function handleGameClick(event: MouseEvent | KeyboardEvent, gameId: string | und
 
 <template>
     <main>
-        <div v-if="gamesStore.areGamesInitialized">
+        <div v-if="gamesStore.areGamesInitialized" class="scroll-container">
             <div v-if="gamesStore.currentGames.size > 0">
                 <v-list lines="two">
                     <v-list-subheader>Active Games</v-list-subheader>

@@ -9,6 +9,7 @@ export interface GameResponseModel {
     isGameComplete: boolean;
     needToInvitePlayer: boolean;
     nudgeWasSent: boolean;
+    messages: MessageModel[];
     lastUpdate: string;
 }
 
@@ -26,6 +27,22 @@ export interface GameUpdateModel {
 
 export interface TurnCreateModel {
     turn: string;
+}
+
+export interface MessageModel {
+    _id: string;
+    playerId: string;
+    text: string;
+    readByOtherPlayer: boolean;
+    timestamp: string;
+}
+
+export interface MessageCreateModel {
+    text: string;
+}
+
+export interface MessageUpdateModel {
+    readByOtherPlayer: boolean;
 }
 
 export interface GameWebsocketUpdateModel {

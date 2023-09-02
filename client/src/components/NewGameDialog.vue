@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
-import { useAppStore } from '../stores/app';
+import { ref } from 'vue';
 import { useGamesStore } from '../stores/games';
-const appStore = useAppStore();
+import { usePlayerStore } from '../stores/player';
 const gamesStore = useGamesStore();
 const router = useRouter();
+const playerStore = usePlayerStore();
+const shouldShowNewGameDialog = ref(!playerStore.playerNeedsInitialization &&
+    gamesStore.currentGames.size === 0);
 
 async function createGameAndNavigate() {
     const newGame = await gamesStore.createGame();
@@ -13,7 +16,7 @@ async function createGameAndNavigate() {
 </script>
 
 <template>
-    <v-dialog v-model="appStore.shouldShowNewGameDialog">
+    <v-dialog v-model="shouldShowNewGameDialog">
         <v-card>
             <v-card-title class="px-5 pt-5 pb-0 d-flex justify-center">
                 <span class="text-h5">No Active Games</span>

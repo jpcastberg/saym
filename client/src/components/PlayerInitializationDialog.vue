@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { usePlayerStore } from "../stores/player";
+import validateUsername from "../utils/validateUsername";
 const playerStore = usePlayerStore();
 const usernameInput = ref("");
 const phoneNumberInput = ref("");
@@ -65,12 +66,14 @@ async function autoSubmitOtp() {
 <template>
     <v-dialog v-model="playerStore.playerNeedsInitialization">
         <v-card v-if="playerStore.needsUsername">
-            <v-card-title class="px-5 pt-5 pb-0 d-flex justify-center">
+            <v-card-title class="pt-5 px-5 pb-3 d-flex justify-center">
                 <span class="text-h5">Welcome to Saym!</span>
             </v-card-title>
-            <v-form class="pa-5 d-flex flex-column align-center" @submit.prevent="setUsername">
-                <v-card-text class="w-100">
-                    <v-text-field v-model="usernameInput" label="What should we call you?" required />
+            <v-form class="pt-0 px-5 pb-5 d-flex flex-column align-center" @submit.prevent="setUsername">
+                <v-text-field v-model="usernameInput" class="w-100" :rules="[validateUsername]"
+                    label="What should we call you?" required />
+                <v-card-text class="w-100 pt-0 px-0 text-center">
+                    Choose a name your friends will recognize.
                 </v-card-text>
                 <v-card-actions class="py-0">
                     <v-btn size="large" type="submit" color="teal-darken-1" variant="elevated">
@@ -83,7 +86,10 @@ async function autoSubmitOtp() {
             <v-card-title class="px-5 pt-5 pb-0 d-flex justify-center">
                 <span class="text-h5">Receive Notifications?</span>
             </v-card-title>
-            <v-form class="pa-5 d-flex flex-column align-center" @submit.prevent="setNotificationPreference">
+            <v-card-text class="w-100 px-2 py-0 text-center">
+                Notifications relate only to games you are in.
+            </v-card-text>
+            <v-form class="pt-2 px-5 pb-5 d-flex flex-column align-center" @submit.prevent="setNotificationPreference">
                 <v-card-actions class="py-0">
                     <v-btn size="large" type="submit" color="grey-lighten-1" variant="elevated">
                         Not Now

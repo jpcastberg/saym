@@ -2,10 +2,14 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { sanitizeUrl } from "@braintree/sanitize-url";
+import { goBack } from "../router";
 import { useAppStore } from "../stores/app";
 import { useGamesStore } from "../stores/games";
+import { usePlayerStore } from "../stores/player";
+import { botName } from "../../../shared/models/PlayerModels";
 
 const appStore = useAppStore();
+const playerStore = usePlayerStore();
 const gamesStore = useGamesStore();
 const router = useRouter();
 
@@ -50,7 +54,7 @@ function getIcon() {
 }
 
 function getAction() {
-    return getPageName() === "home" ? toggleAppDrawer : goBack;
+    return getPageName() === "home" ? toggleAppDrawer : handleBackButtonPress;
 }
 
 function getCurrentGame() {
@@ -63,26 +67,35 @@ function getTitle() {
     if (pageName === "home") {
         return "Active Games";
     } else if (pageName === "games") {
-        const game = getCurrentGame();
-        const otherPlayerUsername = game?.otherPlayer?.username;
+        const otherPlayerUsername = getOtherPlayerUsername();
         return otherPlayerUsername ?
             `Game with ${otherPlayerUsername}` : "Saym game";
+    } else if (pageName === "messages") {
+        const otherPlayerUsername = getOtherPlayerUsername();
+        return otherPlayerUsername ?
+            `Conversation with ${otherPlayerUsername}` : "Messages";
     }
 
     return "Saym"; // should not happen
+}
+
+function getOtherPlayerUsername() {
+    const game = getCurrentGame();
+    return game?.otherPlayer?.username;
 }
 
 function toggleAppDrawer() {
     appStore.shouldShowAppDrawer = !appStore.shouldShowAppDrawer;
 }
 
-async function goBack() {
+async function handleBackButtonPress() {
     const urlParameters = new URLSearchParams(location.search);
     const backParameter = urlParameters.get("back");
     if (backParameter) {
         await router.push(sanitizeUrl(backParameter));
     }
-    await router.push("/");
+
+    await goBack();
 }
 
 function refreshGame() {
@@ -90,6 +103,10 @@ function refreshGame() {
     if (currentGame) {
         void gamesStore.refreshGame(currentGame._id);
     }
+}
+
+function shouldShowMarkGameComplete() {
+    return router.currentRoute.value.name === "games";
 }
 
 function markGameComplete() {
@@ -125,6 +142,36 @@ function sendNudge() {
     }
 }
 
+function shouldShowMessagesIcon() {
+    const currentGame = getCurrentGame();
+    return router.currentRoute.value.name === "games" && (currentGame?.otherPlayer ? currentGame.otherPlayer._id !== botName : true);
+}
+
+async function goToGameMessages() {
+    const currentGame = getCurrentGame();
+    const currentGamePath = `/games/${currentGame?._id}`;
+
+    if (currentGame) {
+        await router.push(`${currentGamePath}/messages`);
+    }
+}
+
+function lastMessageIsUnread() {
+    const currentGame = getCurrentGame();
+
+    if (currentGame) {
+        const playerId = playerStore.player?._id;
+        const lastReceivedMessage =
+            currentGame.messages.findLast(message => message.playerId !== playerId);
+
+        console.log("last received message:", lastReceivedMessage);
+
+        return Boolean(lastReceivedMessage && !lastReceivedMessage.readByOtherPlayer);
+    }
+
+    return false;
+}
+
 function handleIconClick() {
     const action = getAction();
     action();
@@ -137,13 +184,19 @@ async function createGameAndNavigate() {
 </script>
 
 <template>
-    <v-app-bar color="teal-darken-1">
+    <v-app-bar>
         <v-app-bar-nav-icon color="white" @click="handleIconClick">
             <v-icon :icon="icon" />
         </v-app-bar-nav-icon>
         <v-app-bar-title>{{ title }}</v-app-bar-title>
         <v-btn v-if="isHome" size="large" @click="createGameAndNavigate">
             + New
+        </v-btn>
+        <v-btn v-if="shouldShowMessagesIcon()" icon @click="goToGameMessages">
+            <v-badge v-if="lastMessageIsUnread()" color="red" dot>
+                <v-icon>mdi-message-text</v-icon>
+            </v-badge>
+            <v-icon v-else>mdi-message-text</v-icon>
         </v-btn>
         <v-btn v-if="currentGame" icon>
             <v-icon>mdi-dots-vertical</v-icon>
@@ -152,14 +205,14 @@ async function createGameAndNavigate() {
                     <v-list-item @click="refreshGame">
                         Refresh
                     </v-list-item>
-                    <v-list-item @click="markGameComplete">
+                    <v-list-item v-if="shouldShowMarkGameComplete()" @click="markGameComplete">
                         Mark game complete
                     </v-list-item>
                     <v-list-item :disabled="!canNudge()" @click="sendNudge">
                         Nudge {{ getCurrentGame()?.otherPlayer?.username }}
                     </v-list-item>
                     <v-list-item v-if="canInvite()" @click="sendInvite">
-                        Send invite
+                        Resend invite
                     </v-list-item>
                 </v-list>
             </v-menu>

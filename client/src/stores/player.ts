@@ -5,14 +5,12 @@ import {
     type PhoneValidationRequestModel,
     type PhoneValidationResponseModel,
 } from "../../../shared/models/PlayerModels";
+import { useAppStore } from "./app";
 
 interface PlayerState {
     isPlayerFetched: boolean;
     player: PlayerModel | null;
 }
-
-const areNativeNotificationsSupported =
-    "serviceWorker" in navigator && "PushManager" in window;
 
 export const usePlayerStore = defineStore("player", {
     state: (): PlayerState => ({
@@ -21,34 +19,38 @@ export const usePlayerStore = defineStore("player", {
     }),
     getters: {
         playerNeedsInitialization(state): boolean {
+            const appStore = useAppStore();
             return Boolean(
                 this.needsUsername ||
                     // this.needsPhoneNumber ||
                     // this.needsPhoneNumberValidation || // waiting for A2P Registration to complete https://jpc.pw/Xi9RM
-                    (areNativeNotificationsSupported &&
+                    (appStore.areNativeNotificationsSupported &&
                         state.player?.sendNotifications === null),
             );
         },
         needsUsername(state) {
             return state.isPlayerFetched && !state.player?.username;
         },
-        needsToSetNotifications(state) {
-            return (
-                areNativeNotificationsSupported &&
-                state.player?.sendNotifications === null
+        needsToSetNotifications(state): boolean {
+            const appStore = useAppStore();
+            return Boolean(
+                appStore.areNativeNotificationsSupported &&
+                    state.player?.sendNotifications === null,
             );
         },
-        needsPhoneNumber(state) {
+        needsPhoneNumber(state): boolean {
+            const appStore = useAppStore();
             return Boolean(
                 state.player?.sendNotifications &&
-                    !areNativeNotificationsSupported &&
+                    !appStore.areNativeNotificationsSupported &&
                     !state.player.phoneNumber,
             );
         },
-        needsPhoneNumberValidation(state) {
+        needsPhoneNumberValidation(state): boolean {
+            const appStore = useAppStore();
             return Boolean(
                 state.player?.sendNotifications &&
-                    !areNativeNotificationsSupported &&
+                    !appStore.areNativeNotificationsSupported &&
                     state.player.phoneNumber &&
                     !state.player.isPhoneNumberValidated,
             );
@@ -97,16 +99,17 @@ export const usePlayerStore = defineStore("player", {
             }
         },
         async setNotificationPreference(sendNotifications: boolean) {
+            const appStore = useAppStore();
             const playerUpdateBody: PlayerUpdateModel = {
                 sendNotifications,
             };
             await updatePlayer(playerUpdateBody);
 
             if (sendNotifications) {
-                if (areNativeNotificationsSupported) {
+                if (appStore.areNativeNotificationsSupported) {
                     await turnOnNativeNotifications();
                 } else if (this.player?.phoneNumber) {
-                    await turnOnSmsNotifications();
+                    // await turnOnSmsNotifications();
                 }
             }
         },
@@ -135,7 +138,7 @@ async function turnOnNativeNotifications() {
     if (sendNotifications) {
         const registration = await navigator.serviceWorker.getRegistration();
         const subscription = await registration?.pushManager.subscribe({
-            playerVisibleOnly: true,
+            userVisibleOnly: true,
             applicationServerKey:
                 "BJSK-EtWwl9dvDnnEbTJo86a9LvOuvEgPSLUEtlKgF1_X-ZrG1omQUlglV7vnsbE6ZmcTuaDB_A6zbbrw5hOoZA",
         });
@@ -154,7 +157,7 @@ async function turnOnNativeNotifications() {
     });
 }
 
-async function turnOnSmsNotifications() {
+function turnOnSmsNotifications() {
     const playerStore = usePlayerStore();
     if (!playerStore.player?.phoneNumber) {
     }

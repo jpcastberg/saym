@@ -1,7 +1,14 @@
-import { type UpdateFilter, type Filter, type Document } from "mongodb";
-import { type GameResponseModel } from "../../../shared/models/GameModels";
+import {
+    type UpdateFilter,
+    type Filter,
+    type Document,
+    type UpdateOptions,
+} from "mongodb";
+import {
+    type GameResponseModel,
+    type MessageModel,
+} from "../../../shared/models/GameModels";
 import generateId from "../utils/idGenerator";
-import getPlayerFilterExpression from "../utils/getPlayerFilterExpression";
 import { dbConnect } from ".";
 
 export interface GameDbModel {
@@ -13,40 +20,42 @@ export interface GameDbModel {
     isGameComplete: boolean;
     needToInvitePlayer: boolean;
     nudgeWasSent: boolean;
+    messages: MessageModel[];
     lastUpdate: string;
 }
 
 class GamesDbApi {
     async get(
-        gameId: string,
         playerId: string,
+        gameId: string,
     ): Promise<GameResponseModel | undefined> {
-        const matches = await this.getMatches(gameId, playerId, false);
+        const matches = await this.getMatches(playerId, gameId, false);
         return matches[0];
     }
 
     async getAll(playerId: string): Promise<GameResponseModel[]> {
-        return await this.getMatches(null, playerId, false);
+        return await this.getMatches(playerId, null, false);
     }
 
-    async create(playerOneId: string, playerTwoId: string | null) {
+    async create(playerId: string, playerTwoId: string | null) {
         const db = await dbConnect();
         const games = db.collection<GameDbModel>("games");
         const newGameId = generateId();
         const newGame: GameDbModel = {
             _id: newGameId,
-            playerOneId: playerOneId,
-            playerTwoId: playerTwoId,
+            playerOneId: playerId,
+            playerTwoId,
             playerOneTurns: [],
             playerTwoTurns: [],
             isGameComplete: false,
             needToInvitePlayer: !playerTwoId,
             nudgeWasSent: false,
+            messages: [],
             lastUpdate: new Date().toISOString(),
         };
 
         await games.insertOne(newGame);
-        return this.get(newGameId, playerOneId);
+        return this.get(playerId, newGameId);
     }
 
     async update(
@@ -115,12 +124,63 @@ class GamesDbApi {
 
         await games.updateOne(filter, gameUpdates);
 
-        return await this.get(gameId, playerId);
+        return await this.get(playerId, gameId);
+    }
+
+    async createMessage(playerId: string, gameId: string, text: string) {
+        const db = await dbConnect();
+        const games = db.collection<GameDbModel>("games");
+
+        const newMessage: MessageModel = {
+            _id: generateId(),
+            playerId,
+            text,
+            readByOtherPlayer: false,
+            timestamp: new Date().toISOString(),
+        };
+        const updatedThread: UpdateFilter<GameDbModel> = {
+            $push: {
+                messages: newMessage,
+            },
+        };
+        const filter: Filter<GameDbModel> = {
+            _id: gameId,
+            $or: getPlayerFilterExpression(playerId, false),
+        };
+
+        await games.updateOne(filter, updatedThread);
+        return this.get(playerId, gameId);
+    }
+
+    async updateMessage(
+        playerId: string,
+        gameId: string,
+        messageId: string,
+        readByOtherPlayer: boolean,
+    ) {
+        const db = await dbConnect();
+        const games = db.collection<GameDbModel>("games");
+
+        const filter: Filter<GameDbModel> = {
+            _id: gameId,
+            $or: getPlayerFilterExpression(playerId, false),
+        };
+        const updatedThread: UpdateFilter<GameDbModel> = {
+            $set: {
+                "messages.$[message].readByOtherPlayer": readByOtherPlayer,
+            },
+        };
+        const options: UpdateOptions = {
+            arrayFilters: [{ "message._id": messageId }],
+        };
+
+        await games.updateOne(filter, updatedThread, options);
+        return await this.get(playerId, gameId);
     }
 
     private async getMatches(
-        gameId: string | null,
         playerId: string,
+        gameId: string | null,
         isPlayerTwoJoining: boolean | null,
     ) {
         const db = await dbConnect();
@@ -143,7 +203,7 @@ class GamesDbApi {
                         from: "players",
                         localField: "playerOneId",
                         foreignField: "_id",
-                        as: "playerOneArr",
+                        as: "playerOneArray",
                     },
                 },
                 {
@@ -151,16 +211,16 @@ class GamesDbApi {
                         from: "players",
                         localField: "playerTwoId",
                         foreignField: "_id",
-                        as: "playerTwoArr",
+                        as: "playerTwoArray",
                     },
                 },
                 {
                     $addFields: {
                         playerOne: {
-                            $arrayElemAt: ["$playerOneArr", 0],
+                            $arrayElemAt: ["$playerOneArray", 0],
                         },
                         playerTwo: {
-                            $arrayElemAt: ["$playerTwoArr", 0],
+                            $arrayElemAt: ["$playerTwoArray", 0],
                         },
                     },
                 },
@@ -168,8 +228,8 @@ class GamesDbApi {
                     $unset: [
                         "playerOneId",
                         "playerTwoId",
-                        "playerOneArr",
-                        "playerTwoArr",
+                        "playerOneArray",
+                        "playerTwoArray",
                         "playerOne.phoneNumber",
                         "playerOne.isPhoneNumberValidated",
                         "playerOne.pushSubscription",
@@ -186,6 +246,20 @@ class GamesDbApi {
             ])
             .toArray()) as GameResponseModel[];
     }
+}
+
+function getPlayerFilterExpression(
+    playerId: string,
+    isPlayerTwoJoining: boolean | null,
+) {
+    return [
+        {
+            playerOneId: playerId,
+        },
+        {
+            playerTwoId: isPlayerTwoJoining ? void 0 : playerId,
+        },
+    ];
 }
 
 const gamesDbApi = new GamesDbApi();

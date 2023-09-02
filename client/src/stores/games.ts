@@ -203,7 +203,7 @@ export const useGamesStore = defineStore("games", {
             ).then((response) => response.json())) as GameResponseModel;
             this.updateGame(computeGameMetadata(gameResponse));
         },
-        async submitTurn(turn: string, gameId: string) {
+        async submitTurn(gameId: string, turn: string) {
             const gameResponse = (await fetch(`/api/games/${gameId}/turns`, {
                 method: "post",
                 body: JSON.stringify({ turn }),
@@ -211,6 +211,31 @@ export const useGamesStore = defineStore("games", {
                     "content-type": "application/json",
                 },
             }).then((response) => response.json())) as GameResponseModel;
+
+            this.updateGame(computeGameMetadata(gameResponse));
+        },
+        async submitMessage(gameId: string, text: string) {
+            const gameResponse = (await fetch(`/api/games/${gameId}/messages`, {
+                method: "post",
+                body: JSON.stringify({ text }),
+                headers: {
+                    "content-type": "application/json",
+                },
+            }).then((response) => response.json())) as GameResponseModel;
+
+            this.updateGame(computeGameMetadata(gameResponse));
+        },
+        async markMessageRead(gameId: string, messageId: string) {
+            const gameResponse = (await fetch(
+                `/api/games/${gameId}/messages/${messageId}`,
+                {
+                    method: "put",
+                    body: JSON.stringify({ readByOtherPlayer: true }),
+                    headers: {
+                        "content-type": "application/json",
+                    },
+                },
+            ).then((response) => response.json())) as GameResponseModel;
 
             this.updateGame(computeGameMetadata(gameResponse));
         },
