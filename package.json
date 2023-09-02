@@ -57,13 +57,13 @@
     "name": "saym_server",
     "scripts": {
         "dev": "run-p dev-client dev-server",
-        "start": "ts-node --project tsconfig.node.json -r dotenv/config server/src/index.ts",
+        "start": "run-s build start-server",
+        "start-server": "ts-node --project tsconfig.node.json -r dotenv/config server/src/index.ts",
         "test": "jest --config server/test/jest.config.ts",
         "dev-client": "vite client",
         "dev-server": "nodemon --ext ts --watch server/src --watch shared",
-        "build": "run-p type-check build-only",
-        "preview": "vite preview",
-        "build-only": "vite build",
+        "build": "run-s type-check build-only",
+        "build-only": "vite build client",
         "type-check": "vue-tsc --noEmit -p tsconfig.app.json --composite false",
         "lint": "eslint . -c eslint.config.js --fix"
     },
