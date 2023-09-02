@@ -122,7 +122,7 @@ async function continuePlayingWithOtherPlayer() {
                                     {{ displayTurn.icon }}
                                 </span>
                             </div>
-                            <div class="w-100 text-center turn">
+                            <div :class="`w-100 text-center ${displayTurn.otherPlayerTurn ? 'turn' : ''}`">
                                 <span v-if="displayTurn.otherPlayerTurn">
                                     {{ displayTurn.otherPlayerTurn }}
                                 </span>
