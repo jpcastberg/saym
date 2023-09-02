@@ -157,8 +157,8 @@ async function turnOnNativeNotifications() {
     });
 }
 
-function turnOnSmsNotifications() {
-    const playerStore = usePlayerStore();
-    if (!playerStore.player?.phoneNumber) {
-    }
-}
+// function turnOnSmsNotifications() {
+//     const playerStore = usePlayerStore();
+//     if (!playerStore.player?.phoneNumber) {
+//     }
+// }

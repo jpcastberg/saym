@@ -110,14 +110,14 @@ function getMessageClass(message: MessageModel) {
 }
 
 .message.sent {
-    background-color: #4CAF50;
+    background-color: #00897b;
     color: white;
     align-self: flex-end;
 }
 
 /* Style for messages from the other user */
 .message.received {
-    background-color: #008CBA;
+    background-color: #681EE3;
     color: white;
     align-self: flex-start;
 }
