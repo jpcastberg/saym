@@ -16,7 +16,7 @@ async function initialize() {
 </script>
 
 <template>
-    <v-app v-if="initializationComplete" class="h-screen">
+    <v-app v-if="initializationComplete">
         <app-bar />
         <player-initialization-dialog />
         <router-view />

@@ -46,7 +46,27 @@ export function listenForEvent(eventName: string, callback: EventCallback) {
 }
 
 export function ensureWebsocketConnected() {
-    if (socket.readyState !== WebSocket.OPEN) {
+    let connectionStatus = "";
+    switch (socket.readyState) {
+        case WebSocket.OPEN:
+            connectionStatus = "OPEN"
+            break;
+        case WebSocket.CONNECTING:
+            connectionStatus = "CONNECTING"
+            break;
+        case WebSocket.CLOSING:
+            connectionStatus = "CLOSING"
+            break;
+        case WebSocket.CLOSED:
+            connectionStatus = "CLOSED"
+            break;
+        default:
+            break;
+    }
+
+    console.log("socket.readyState:", connectionStatus)
+    if (socket.readyState !== WebSocket.OPEN && socket.readyState !== WebSocket.CONNECTING) {
+        console.log("recreating websocket connection")
         socket = createWebSocketConnection();
     }
 }

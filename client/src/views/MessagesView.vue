@@ -101,11 +101,9 @@ function getMessageClass(message: MessageModel) {
 /* Message bubbles */
 .message {
     max-width: 70%;
-    /* Adjust as needed */
-    padding: 10px;
-    margin: 100%;
+    padding: 5px 10px;
     border-radius: 10px;
-    clear: both;
+    font-size: 20px;
     overflow-wrap: anywhere;
 }
 
