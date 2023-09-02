@@ -1,7 +1,7 @@
 import app from "./app";
 import wsServer from "./websocket";
 
-const port = 3000;
+const port = 7296;
 
 const server = app.listen(port, () => {
     console.log(`Saym app listening on port ${port}`);
