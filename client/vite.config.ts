@@ -49,9 +49,9 @@ export default defineConfig({
     server: {
         host: true,
         proxy: {
-            "^/api/.*": "http://localhost:3000",
+            "^/api/.*": "http://localhost:7296",
             "^/websocket/?.*": {
-                target: "ws://localhost:3000",
+                target: "ws://localhost:7296",
                 ws: true,
             },
         },
