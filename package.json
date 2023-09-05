@@ -61,7 +61,7 @@
         "start-server": "ts-node --project tsconfig.node.json -r dotenv/config server/src/index.ts",
         "test": "jest --config server/test/jest.config.ts",
         "dev-client": "vite client",
-        "dev-server": "nodemon --ext ts --watch server/src --watch shared",
+        "dev-server": "nodemon --ext ts --watch server/src --watch shared --exec 'npm run start-server'",
         "build": "run-s type-check build-only",
         "build-only": "vite build client",
         "type-check": "vue-tsc --noEmit -p tsconfig.app.json --composite false",
