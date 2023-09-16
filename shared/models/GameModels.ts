@@ -1,16 +1,29 @@
-import { type PlayerModel } from "./PlayerModels";
+import { type PublicPlayerModel } from "./PlayerModels";
 
 export interface GameResponseModel {
     _id: string;
-    playerOne: PlayerModel | null;
-    playerTwo: PlayerModel | null;
-    playerOneTurns: string[];
-    playerTwoTurns: string[];
+    playerOne: PublicPlayerModel;
+    playerTwo: PublicPlayerModel | null;
+    playerOneTurns: TurnModel[];
+    playerTwoTurns: TurnModel[];
     isGameComplete: boolean;
     needToInvitePlayer: boolean;
-    nudgeWasSent: boolean;
     messages: MessageModel[];
+    playerOneSawFinishedGame: boolean;
+    playerTwoSawFinishedGame: boolean;
     lastUpdate: string;
+}
+
+export interface GameCreateModel {
+    playerTwoId?: string;
+}
+
+export interface GameUpdateModel {
+    playerTwoId?: string;
+    isGameComplete?: boolean;
+    needToInvitePlayer?: boolean;
+    playerOneSawFinishedGame?: boolean;
+    playerTwoSawFinishedGame?: boolean;
 }
 
 export interface AllGamesResponseModel {
@@ -18,15 +31,14 @@ export interface AllGamesResponseModel {
     finishedGames: GameResponseModel[];
 }
 
-export interface GameUpdateModel {
-    playerOneId?: string;
-    playerTwoId?: string | null;
-    playerOneTurns?: string[];
-    playerTwoTurns?: string[];
+export interface TurnModel {
+    _id: string;
+    text: string;
+    timestamp: string;
 }
 
 export interface TurnCreateModel {
-    turn: string;
+    text: string;
 }
 
 export interface MessageModel {
