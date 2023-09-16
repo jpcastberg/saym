@@ -4,10 +4,10 @@ import { type PushNotificationModel } from "../../../shared/models/NotificationM
 import sendSms from "./sendSms";
 
 export interface NotificationModel {
-    gameId: string;
+    url: string | null;
     pushTitle: string;
     pushMessage: string;
-    smsMessage: string;
+    smsMessage: string | null;
 }
 
 webPush.setVapidDetails(
@@ -20,35 +20,41 @@ async function sendNotification(
     playerId: string,
     notification: NotificationModel,
 ) {
-    const player = await playersDbApi.get(playerId);
+    const player = await playersDbApi.get({ playerId });
 
-    if (!player?.sendNotifications) {
+    if (!player) {
         return;
     }
 
-    if (player.pushSubscription) {
-        console.log(
-            "sending notification to player:",
-            player,
-            "message:",
-            notification,
-        );
-        const pushNotification: PushNotificationModel = {
-            gameId: notification.gameId,
-            title: notification.pushTitle,
-            message: notification.pushMessage,
-        };
+    const pushNotification: PushNotificationModel = {
+        playerId,
+        url: notification.url,
+        title: notification.pushTitle,
+        message: notification.pushMessage,
+    };
+
+    for (const pushSubscription of player.pushSubscriptions) {
+        if (!pushSubscription.isActive) {
+            continue;
+        }
+
         await webPush.sendNotification(
             {
-                endpoint: player.pushSubscription.endpoint!,
+                endpoint: pushSubscription.subscription.endpoint!,
                 keys: {
-                    p256dh: player.pushSubscription.keys!.p256dh,
-                    auth: player.pushSubscription.keys!.auth,
+                    p256dh: pushSubscription.subscription.keys!.p256dh,
+                    auth: pushSubscription.subscription.keys!.auth,
                 },
             },
             JSON.stringify(pushNotification),
         );
-    } else if (player.phoneNumber && player.isPhoneNumberValidated) {
+    }
+
+    if (
+        player.phoneNumber &&
+        player.sendSmsNotifications &&
+        notification.smsMessage
+    ) {
         await sendSms(player.phoneNumber, notification.smsMessage);
     }
 }
