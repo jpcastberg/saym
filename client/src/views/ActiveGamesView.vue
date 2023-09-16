@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from "vue-router";
-import NewGameDialog from "../components/NewGameDialog.vue";
-import AboutDialog from "../components/AboutDialog.vue";
-import RulesDialog from "../components/RulesDialog.vue";
 import { useGamesStore } from "../stores/games";
+import InstallPrompt from "../components/InstallPrompt.vue";
 const router = useRouter();
 const gamesStore = useGamesStore();
 
@@ -25,7 +23,6 @@ function handleGameClick(event: MouseEvent | KeyboardEvent, gameId: string | und
                         :subtitle="game?.uiSubtitle" @click="event => handleGameClick(event, game?._id)" />
                 </v-list>
             </div>
-            <new-game-dialog v-else />
             <div v-if="gamesStore.finishedGames.size > 0">
                 <v-list lines="two">
                     <v-list-subheader>Recent Finished Games</v-list-subheader>
@@ -36,9 +33,8 @@ function handleGameClick(event: MouseEvent | KeyboardEvent, gameId: string | und
                 </v-list>
             </div>
         </div>
-        <about-dialog />
-        <rules-dialog />
     </main>
+    <install-prompt />
 </template>
 
 <style scoped>
