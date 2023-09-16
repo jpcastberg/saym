@@ -1,12 +1,13 @@
 import { precacheAndRoute } from "workbox-precaching";
 import { type PushNotificationModel } from "../../shared/models/NotificationModels";
+import { type PlayerModel } from "../../shared/models/PlayerModels";
 
 declare let self: ServiceWorkerGlobalScope;
 
 precacheAndRoute(self.__WB_MANIFEST);
 
 interface NotificationData {
-    gameId: string;
+    url: string | null;
 }
 
 self.addEventListener("push", function (event) {
@@ -15,25 +16,33 @@ self.addEventListener("push", function (event) {
     }
 
     const pushNotification = event.data.json() as PushNotificationModel;
+
     const notificationData: NotificationData = {
-        gameId: pushNotification.gameId,
+        url: pushNotification.url,
     };
-    event.waitUntil(
-        self.registration.showNotification(pushNotification.title, {
-            body: pushNotification.message,
-            data: notificationData,
-            icon: "/pwa-192x192.png",
-            badge: "/badge-128x128.png",
-        }),
-    );
+
+    const promiseChain = fetch("/api/players/me")
+        .then((response) => response.json())
+        .then((currentPlayer: PlayerModel) => {
+            if (pushNotification.playerId !== currentPlayer._id) {
+                return;
+            }
+
+            return self.registration.showNotification(pushNotification.title, {
+                body: pushNotification.message,
+                data: notificationData,
+                icon: "/pwa-192x192.png",
+                badge: "/badge-128x128.png",
+            });
+        });
+
+    event.waitUntil(promiseChain);
 });
 
 self.addEventListener("notificationclick", (event) => {
     event.notification.close();
     const notificationData = event.notification.data as NotificationData;
-    const gameId = notificationData.gameId;
-
-    const urlToOpen = new URL(`/games/${gameId}`, self.location.origin).href;
+    const url = notificationData.url;
 
     const promiseChain = self.clients
         .matchAll({
@@ -41,10 +50,14 @@ self.addEventListener("notificationclick", (event) => {
             includeUncontrolled: true,
         })
         .then((windowClients) => {
+            if (!url) {
+                return;
+            }
+
             let matchingClient = null;
 
             for (const windowClient of windowClients) {
-                if (windowClient.url === urlToOpen) {
+                if (windowClient.url === url) {
                     matchingClient = windowClient;
                     break;
                 }
@@ -53,7 +66,7 @@ self.addEventListener("notificationclick", (event) => {
             if (matchingClient) {
                 return matchingClient.focus();
             } else {
-                return self.clients.openWindow(urlToOpen);
+                return self.clients.openWindow(url);
             }
         });
 
