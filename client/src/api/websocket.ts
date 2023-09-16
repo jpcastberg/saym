@@ -3,12 +3,21 @@ import {
     type GameResponseModel,
 } from "../../../shared/models/GameModels";
 
+let websocketCheckInterval: NodeJS.Timer;
 let socket = createWebSocketConnection();
 const eventNames = new Set<string>(["gameUpdate"]); // todo: proper enum
 
-socket.onmessage = (event: MessageEvent) => {
+socket.addEventListener("message", (event: MessageEvent) => {
+    const message = event.data as string;
+    if (message === "ping") {
+        socket.send("pong");
+        return;
+    } else if (message === "pong") {
+        return;
+    }
+
     const parsedEvent: GameWebsocketUpdateModel = JSON.parse(
-        event.data as string,
+        message,
     ) as GameWebsocketUpdateModel;
 
     if (eventNames.has(parsedEvent.eventType)) {
@@ -16,13 +25,15 @@ socket.onmessage = (event: MessageEvent) => {
             eventListener(parsedEvent.data);
         }
     }
-};
+});
 
 document.addEventListener("visibilitychange", function () {
     ensureWebsocketConnected();
 });
 
 function createWebSocketConnection() {
+    clearInterval(websocketCheckInterval);
+    websocketCheckInterval = setInterval(ensureWebsocketConnected, 10000);
     return new WebSocket(`wss://${location.host}/websocket`);
 }
 
@@ -46,27 +57,26 @@ export function listenForEvent(eventName: string, callback: EventCallback) {
 }
 
 export function ensureWebsocketConnected() {
-    let connectionStatus = "";
+    console.log("socket.readyState:", getSocketReadyState());
+    if (socket.readyState === WebSocket.OPEN) {
+        socket.send("ping");
+    } else if (socket.readyState !== WebSocket.CONNECTING) {
+        console.log("recreating websocket connection");
+        socket = createWebSocketConnection();
+    }
+}
+
+function getSocketReadyState() {
     switch (socket.readyState) {
         case WebSocket.OPEN:
-            connectionStatus = "OPEN"
-            break;
+            return "OPEN";
         case WebSocket.CONNECTING:
-            connectionStatus = "CONNECTING"
-            break;
+            return "CONNECTING";
         case WebSocket.CLOSING:
-            connectionStatus = "CLOSING"
-            break;
+            return "CLOSING";
         case WebSocket.CLOSED:
-            connectionStatus = "CLOSED"
-            break;
+            return "CLOSED";
         default:
-            break;
-    }
-
-    console.log("socket.readyState:", connectionStatus)
-    if (socket.readyState !== WebSocket.OPEN && socket.readyState !== WebSocket.CONNECTING) {
-        console.log("recreating websocket connection")
-        socket = createWebSocketConnection();
+            return null;
     }
 }
