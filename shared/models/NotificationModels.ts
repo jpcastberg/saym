@@ -1,5 +1,6 @@
 export interface PushNotificationModel {
-    gameId: string;
+    playerId: string;
+    url: string | null;
     title: string;
     message: string;
 }
