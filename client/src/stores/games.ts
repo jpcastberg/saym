@@ -2,8 +2,13 @@ import { defineStore } from "pinia";
 import {
     type AllGamesResponseModel,
     type GameResponseModel,
+    type GameUpdateModel,
+    type TurnModel,
 } from "../../../shared/models/GameModels";
-import { type PublicPlayerModel } from "../../../shared/models/PlayerModels";
+import {
+    botName,
+    type PublicPlayerModel,
+} from "../../../shared/models/PlayerModels";
 import { listenForEvent } from "../api/websocket";
 import router from "../router";
 import { usePlayerStore } from "./player";
@@ -14,13 +19,13 @@ export interface ComputedGameModel extends GameResponseModel {
     hasPlayerPlayedRound: boolean;
     uiTitle: string;
     uiSubtitle: string;
-    canNudge: boolean;
+    sawFinishedGame: boolean;
 }
 
 interface DisplayTurn {
-    currentPlayerTurn: string;
+    currentPlayerTurn: TurnModel;
     icon: string;
-    otherPlayerTurn: string;
+    otherPlayerTurn?: TurnModel;
 }
 
 type GamesMap = Map<string, ComputedGameModel | undefined>;
@@ -29,7 +34,6 @@ interface GamesState {
     areGamesInitialized: boolean;
     currentGames: GamesMap;
     finishedGames: GamesMap;
-    activeGameNotFound: boolean;
 }
 
 interface Deferred {
@@ -48,7 +52,6 @@ export const useGamesStore = defineStore("games", {
             areGamesInitialized: false,
             currentGames,
             finishedGames,
-            activeGameNotFound: false,
         };
     },
     getters: {
@@ -71,6 +74,11 @@ export const useGamesStore = defineStore("games", {
             } = router;
 
             return this.getGameById(gameId as string);
+        },
+        activeGameNotFound(): boolean {
+            return (
+                router.currentRoute.value.name === "games" && !this.activeGame
+            );
         },
     },
     actions: {
@@ -104,8 +112,16 @@ export const useGamesStore = defineStore("games", {
             return this.currentGames.get(newGame._id)!;
         },
         async joinGame(gameId: string): Promise<ComputedGameModel | null> {
-            const joinedGame = (await fetch(`/api/games/${gameId}/join`, {
-                method: "post",
+            const playerStore = usePlayerStore();
+            const body: GameUpdateModel = {
+                playerTwoId: playerStore.player?._id,
+            };
+            const joinedGame = (await fetch(`/api/games/${gameId}`, {
+                method: "put",
+                body: JSON.stringify(body),
+                headers: {
+                    "content-type": "application/json",
+                },
             }).then((response) => {
                 return response.ok ? response.json() : null;
             })) as GameResponseModel | null;
@@ -129,12 +145,16 @@ export const useGamesStore = defineStore("games", {
             this.updateGame(computeGameMetadata(refreshedGame));
         },
         async markGameComplete(gameId: string) {
-            const completedGame = (await fetch(
-                `/api/games/${gameId}/complete`,
-                {
-                    method: "post",
+            const body: GameUpdateModel = {
+                isGameComplete: true,
+            };
+            const completedGame = (await fetch(`/api/games/${gameId}`, {
+                method: "put",
+                body: JSON.stringify(body),
+                headers: {
+                    "content-type": "application/json",
                 },
-            ).then((response) => response.json())) as GameResponseModel;
+            }).then((response) => response.json())) as GameResponseModel;
 
             this.updateGame(computeGameMetadata(completedGame));
         },
@@ -181,7 +201,7 @@ export const useGamesStore = defineStore("games", {
             if (isNativeSharingAvailable) {
                 await navigator.share({
                     title: "Come play Saym!",
-                    text: `${playerStore.player?.username} is inviting you to play Saym with them. Follow this link to join:`,
+                    text: `${playerStore.player?.username} is inviting you to play Saym with them. Follow this link to join: ${shareLink}`,
                     url: shareLink,
                 });
             } else {
@@ -189,24 +209,35 @@ export const useGamesStore = defineStore("games", {
             }
         },
         async logGameInvite(gameId: string) {
-            const gameResponse = (await fetch(`/api/games/${gameId}/invite`, {
-                method: "post",
+            const body: GameUpdateModel = {
+                needToInvitePlayer: false,
+            };
+            const gameResponse = (await fetch(`/api/games/${gameId}`, {
+                method: "put",
+                body: JSON.stringify(body),
+                headers: {
+                    "content-type": "application/json",
+                },
             }).then((response) => response.json())) as GameResponseModel;
             this.updateGame(computeGameMetadata(gameResponse));
         },
         async inviteBot(gameId: string) {
-            const gameResponse = (await fetch(
-                `/api/games/${gameId}/invite-bot`,
-                {
-                    method: "post",
+            const body: GameUpdateModel = {
+                playerTwoId: botName,
+            };
+            const gameResponse = (await fetch(`/api/games/${gameId}`, {
+                method: "put",
+                body: JSON.stringify(body),
+                headers: {
+                    "content-type": "application/json",
                 },
-            ).then((response) => response.json())) as GameResponseModel;
+            }).then((response) => response.json())) as GameResponseModel;
             this.updateGame(computeGameMetadata(gameResponse));
         },
-        async submitTurn(gameId: string, turn: string) {
+        async submitTurn(gameId: string, text: string) {
             const gameResponse = (await fetch(`/api/games/${gameId}/turns`, {
                 method: "post",
-                body: JSON.stringify({ turn }),
+                body: JSON.stringify({ text }),
                 headers: {
                     "content-type": "application/json",
                 },
@@ -239,12 +270,27 @@ export const useGamesStore = defineStore("games", {
 
             this.updateGame(computeGameMetadata(gameResponse));
         },
-        async sendNudge(gameId: string) {
-            const gameResponse = (await fetch(`/api/games/${gameId}/nudge`, {
-                method: "post",
-            }).then((response) => response.json())) as GameResponseModel;
+        async markFinishedGameAsSeen(gameId: string) {
+            const playerStore = usePlayerStore();
+            const game =
+                this.currentGames.get(gameId) ?? this.finishedGames.get(gameId);
+            const isPlayerOne = game?.playerOne._id === playerStore.player?._id;
+            const body: GameUpdateModel = {
+                [isPlayerOne
+                    ? "playerOneSawFinishedGame"
+                    : "playerTwoSawFinishedGame"]: true,
+            };
+            if (game?.isGameComplete) {
+                const gameResponse = (await fetch(`/api/games/${gameId}`, {
+                    method: "put",
+                    body: JSON.stringify(body),
+                    headers: {
+                        "content-type": "application/json",
+                    },
+                }).then((response) => response.json())) as GameResponseModel;
 
-            this.updateGame(computeGameMetadata(gameResponse));
+                this.updateGame(computeGameMetadata(gameResponse));
+            }
         },
     },
 });
@@ -286,7 +332,7 @@ function gamesSortAlgorithm(a: ComputedGameModel, b: ComputedGameModel) {
 
 function computeGameMetadata(game: GameResponseModel): ComputedGameModel {
     const playerStore = usePlayerStore();
-    const isPlayerOne = playerStore.player?._id === game.playerOne?._id;
+    const isPlayerOne = playerStore.player?._id === game.playerOne._id;
     const [otherPlayer, currentPlayerTurns, otherPlayerTurns] = isPlayerOne
         ? [game.playerTwo, game.playerOneTurns, game.playerTwoTurns]
         : [game.playerOne, game.playerTwoTurns, game.playerOneTurns];
@@ -305,12 +351,6 @@ function computeGameMetadata(game: GameResponseModel): ComputedGameModel {
         },
     );
 
-    const canNudge =
-        (otherPlayer?.sendNotifications &&
-            !game.nudgeWasSent &&
-            currentPlayerTurns.length > otherPlayerTurns.length) ??
-        false;
-
     let uiTitle: string;
     let uiSubtitle = "";
 
@@ -318,7 +358,7 @@ function computeGameMetadata(game: GameResponseModel): ComputedGameModel {
         uiTitle = `Game with ${otherPlayer.username ?? "your friend"}`;
         if (game.isGameComplete) {
             const lastWord = currentPlayerTurns[currentPlayerTurns.length - 1];
-            uiSubtitle = `Saym! You both guessed ${lastWord}.`;
+            uiSubtitle = `Saym! You both guessed ${lastWord.text}.`;
         } else if (hasPlayerPlayedRound) {
             uiSubtitle = `Waiting for ${
                 otherPlayer.username ?? "your friend"
@@ -337,6 +377,10 @@ function computeGameMetadata(game: GameResponseModel): ComputedGameModel {
         }
     }
 
+    const sawFinishedGame = isPlayerOne
+        ? game.playerOneSawFinishedGame
+        : game.playerTwoSawFinishedGame;
+
     const computedGame = {
         ...game,
         uiTitle,
@@ -344,7 +388,7 @@ function computeGameMetadata(game: GameResponseModel): ComputedGameModel {
         otherPlayer,
         displayTurns,
         hasPlayerPlayedRound,
-        canNudge,
+        sawFinishedGame,
     };
 
     return computedGame;
