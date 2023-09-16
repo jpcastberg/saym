@@ -1,33 +1,46 @@
 import crypto from "crypto";
-import { Request, Response, NextFunction } from "express";
+import { type Request, type Response, type NextFunction } from "express";
 import cookie from "cookie";
-import { InsertOneResult } from "mongodb";
+import { type WithId } from "mongodb";
 import tokensDbApi, { type TokenModel } from "../database/token";
 import playersDbApi from "../database/players";
 import { type PlayerModel } from "../../../shared/models/PlayerModels";
 import { ResponseLocals } from "../models";
 
-export default async (
+async function tokenHandler(
     req: Request,
     res: Response<Record<string, never>, ResponseLocals>,
     next: NextFunction,
-) => {
+) {
     const providedToken = cookie.parse(req.headers.cookie ?? "").token;
-
-    console.log("provided token:", providedToken);
-
-    let token: TokenModel;
+    let existingToken: TokenModel | null = null;
 
     if (providedToken) {
-        const existingToken: TokenModel | null = await tokensDbApi.get(
-            providedToken,
-        );
-
-        token = (existingToken ? existingToken : await createNewToken())!;
-    } else {
-        token = (await createNewToken())!;
+        existingToken = await tokensDbApi.get({ tokenValue: providedToken });
     }
 
+    if (existingToken) {
+        setTokenOnResponse(existingToken, res);
+    } else {
+        await setNewTokenOnResponse(res);
+    }
+
+    next();
+}
+
+export async function setNewTokenOnResponse(
+    res: Response<Record<string, never>, ResponseLocals>,
+) {
+    const token = await createNewToken();
+    if (token) {
+        setTokenOnResponse(token, res);
+    }
+}
+
+function setTokenOnResponse(
+    token: TokenModel,
+    res: Response<Record<string, never>, ResponseLocals>,
+) {
     res.locals.playerId = token.playerId;
     res.locals.token = token.value;
 
@@ -41,24 +54,23 @@ export default async (
         secure: true,
         expires,
     });
-
-    next();
-};
+}
 
 async function createNewToken() {
-    const playerCreateResponse: InsertOneResult<PlayerModel> =
-        await playersDbApi.create();
-    const playerId = playerCreateResponse.insertedId;
-
+    const newPlayer: WithId<PlayerModel> = (await playersDbApi.create())!;
+    const playerId = newPlayer._id;
     const newAccessToken = createToken();
-    await tokensDbApi.create(newAccessToken, playerId);
+
+    await tokensDbApi.create({ playerId, tokenValue: newAccessToken });
     console.log(
         `set new access token: ${newAccessToken}, for player: ${playerId}`,
     );
 
-    return await tokensDbApi.get(newAccessToken);
+    return await tokensDbApi.get({ tokenValue: newAccessToken });
 }
 
 function createToken() {
     return crypto.randomBytes(13).toString("hex").toUpperCase();
 }
+
+export default tokenHandler;
