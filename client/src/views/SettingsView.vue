@@ -2,29 +2,34 @@
 import { ref, watch } from "vue";
 import { useAppStore } from "../stores/app";
 import { usePlayerStore } from "../stores/player";
-import validateUsername from "../utils/validateUsername";
 
 const appStore = useAppStore();
 const playerStore = usePlayerStore();
-const notificationsSwitchValue = ref(playerStore.player?.sendNotifications);
+const smsNotificationsSwitchValue = ref(playerStore.player?.sendSmsNotifications);
+const pushNotificationsSwitchValue = ref(playerStore.areNativeNotificationsOn);
 
-const usernameInput = ref("");
-const shouldShowUsernameEditDialog = ref(false);
+watch(smsNotificationsSwitchValue, async (newValue) => {
+    if (Boolean(newValue)) {
+        await playerStore.turnOnSmsNotifications();
+    } else {
+        await playerStore.turnOffSmsNotifications();
+    }
+});
 
-watch(notificationsSwitchValue, async (newValue) => {
-    await playerStore.setNotificationPreference(Boolean(newValue));
+watch(pushNotificationsSwitchValue, async (newValue) => {
+    if (Boolean(newValue)) {
+        await playerStore.turnOnPushNotifications();
+    } else {
+        await playerStore.turnOffPushNotifications();
+    }
 });
 
 function toggleUsernameEditDialog() {
-    shouldShowUsernameEditDialog.value = !shouldShowUsernameEditDialog.value;
+    appStore.playerTriggeredUsernameChange = !appStore.playerTriggeredUsernameChange;
 }
 
-async function setUsername(event: SubmitEvent) {
-    if (event.submitter?.id === "submit-username") {
-        await playerStore.updateUsername(usernameInput.value);
-    }
-
-    toggleUsernameEditDialog();
+function togglePhoneNumberEditDialog() {
+    appStore.playerTriggeredPhoneNumberChange = !appStore.playerTriggeredPhoneNumberChange;
 }
 </script>
 
@@ -44,30 +49,29 @@ async function setUsername(event: SubmitEvent) {
                     </v-btn>
                 </div>
             </v-list-item>
+            <v-list-item>
+                <v-list-item-title class="pb-2">
+                    Phone Number
+                </v-list-item-title>
+                <div class="w-100 d-flex align-center justify-space-between">
+                    <span class="text-h6">
+                        {{ playerStore.player?.phoneNumber }}
+                    </span>
+                    <v-btn size="large" @click="togglePhoneNumberEditDialog">
+                        <v-icon>mdi-pencil</v-icon>
+                    </v-btn>
+                </div>
+            </v-list-item>
             <v-divider />
-            <v-list-item v-if="appStore.shouldShowNotificationSettingsToggle" class="">
-                <v-switch v-model="notificationsSwitchValue" color="success" label="Send Notifications" />
+            <v-list-item>
+                <v-switch v-model="smsNotificationsSwitchValue" :disabled="!playerStore.player?.phoneNumber" color="success"
+                    label="Send SMS Notifications" />
+            </v-list-item>
+            <v-list-item>
+                <v-switch v-if="appStore.areNativeNotificationsSupported" v-model="pushNotificationsSwitchValue"
+                    color="success" label="Send Push Notifications" />
             </v-list-item>
         </v-list>
-        <v-dialog v-model="shouldShowUsernameEditDialog">
-            <v-card>
-                <v-form class="pa-5 d-flex flex-column align-center" @submit.prevent="setUsername">
-                    <v-text-field v-model="usernameInput" class="w-100" :rules="[validateUsername]"
-                        label="What should we call you?" required />
-                    <v-card-text class="w-100 pt-0 px-0 text-center">
-                        Choose a name your friends will recognize.
-                    </v-card-text>
-                    <v-card-actions class="py-0">
-                        <v-btn size="large" type="submit" color="grey-lighten-1" variant="elevated">
-                            Cancel
-                        </v-btn>
-                        <v-btn id="submit-username" size="large" type="submit" color="teal-darken-1" variant="elevated">
-                            Submit
-                        </v-btn>
-                    </v-card-actions>
-                </v-form>
-            </v-card>
-        </v-dialog>
     </main>
 </template>
 
