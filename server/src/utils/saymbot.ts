@@ -24,7 +24,7 @@ export async function generateTurn(game: GameResponseModel): Promise<string> {
     }
 
     const wordList = game.playerTwoTurns.reduce((acc, turn, idx) => {
-        acc += `${game.playerOneTurns[idx]},${turn}${
+        acc += `${turn.text},${game.playerOneTurns[idx].text}${
             idx < game.playerTwoTurns.length - 1 ? "," : ""
         }`;
 
@@ -52,5 +52,9 @@ export async function generateTurn(game: GameResponseModel): Promise<string> {
         presence_penalty: 0,
     });
 
-    return response.data.choices[0].message?.content ?? "Spaghetti"; // 🍝
+    const saymbotGuess =
+        response.data.choices[0].message?.content ?? "Spaghetti"; // 🍝
+    console.log("saymbotGuess", saymbotGuess);
+
+    return saymbotGuess;
 }
