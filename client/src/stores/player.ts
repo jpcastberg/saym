@@ -2,8 +2,11 @@ import { defineStore } from "pinia";
 import {
     type PlayerUpdateModel,
     type PlayerModel,
-    type PhoneValidationRequestModel,
-    type PhoneValidationResponseModel,
+    type VerifyPhoneRequestModel,
+    type VerifyPhoneResponseModel,
+    type RequestPhoneVerificationModel,
+    type PushSubscriptionModel,
+    type PushSubscriptionUpdateModel,
 } from "../../../shared/models/PlayerModels";
 import { useAppStore } from "./app";
 
@@ -18,103 +21,195 @@ export const usePlayerStore = defineStore("player", {
         player: null,
     }),
     getters: {
-        playerNeedsInitialization(state): boolean {
+        areNativeNotificationsOn(state) {
             const appStore = useAppStore();
-            return Boolean(
-                this.needsUsername ||
-                    // this.needsPhoneNumber ||
-                    // this.needsPhoneNumberValidation || // waiting for A2P Registration to complete https://jpc.pw/Xi9RM
-                    (appStore.areNativeNotificationsSupported &&
-                        state.player?.sendNotifications === null),
+            const pushSubscriptionId = appStore.pushSubscriptionId;
+
+            const foundPushSubscription = state.player?.pushSubscriptions.find(
+                (subscription) => subscription._id === pushSubscriptionId,
             );
-        },
-        needsUsername(state) {
-            return state.isPlayerFetched && !state.player?.username;
-        },
-        needsToSetNotifications(state): boolean {
-            const appStore = useAppStore();
-            return Boolean(
-                appStore.areNativeNotificationsSupported &&
-                    state.player?.sendNotifications === null,
-            );
-        },
-        needsPhoneNumber(state): boolean {
-            const appStore = useAppStore();
-            return Boolean(
-                state.player?.sendNotifications &&
-                    !appStore.areNativeNotificationsSupported &&
-                    !state.player.phoneNumber,
-            );
-        },
-        needsPhoneNumberValidation(state): boolean {
-            const appStore = useAppStore();
-            return Boolean(
-                state.player?.sendNotifications &&
-                    !appStore.areNativeNotificationsSupported &&
-                    state.player.phoneNumber &&
-                    !state.player.isPhoneNumberValidated,
-            );
+
+            if (foundPushSubscription) {
+                return foundPushSubscription.isActive;
+            }
+
+            return false;
         },
     },
     actions: {
-        async initPlayer(): Promise<void> {
-            if (this.isPlayerFetched) {
-                return;
-            }
-            const playerResponse = (await fetch("/api/players/me").then(
-                (response) => response.json(),
-            )) as PlayerModel;
-
-            this.player = playerResponse;
-            this.isPlayerFetched = true;
-        },
-        async updateUsername(username: string): Promise<void> {
-            const playerUpdateBody: PlayerUpdateModel = {
-                username,
-            };
-            await updatePlayer(playerUpdateBody);
-        },
-        async updatePhoneNumber(phoneNumber: string): Promise<void> {
-            const playerUpdateBody: PlayerUpdateModel = {
-                phoneNumber,
-            };
-            await updatePlayer(playerUpdateBody);
-        },
-        async verifyPhoneNumber(code: string): Promise<void> {
-            const phoneValidationBody: PhoneValidationRequestModel = {
-                code,
-            };
-            const response = (await fetch("/api/players/me/validate-phone", {
-                headers: {
-                    "content-type": "application/json",
-                },
-                body: JSON.stringify(phoneValidationBody),
-            }).then((response) =>
-                response.json(),
-            )) as PhoneValidationResponseModel;
-
-            if (response.success) {
-                alert("success!!");
-                this.player = response.player;
-            }
-        },
-        async setNotificationPreference(sendNotifications: boolean) {
-            const appStore = useAppStore();
-            const playerUpdateBody: PlayerUpdateModel = {
-                sendNotifications,
-            };
-            await updatePlayer(playerUpdateBody);
-
-            if (sendNotifications) {
-                if (appStore.areNativeNotificationsSupported) {
-                    await turnOnNativeNotifications();
-                } else if (this.player?.phoneNumber) {
-                    // await turnOnSmsNotifications();
-                }
-            }
-        },
+        initPlayer,
+        updateUsername,
+        requestPhoneVerification,
+        verifyPhone,
+        setPhoneNumberCollectPreference,
+        turnOnSmsNotifications,
+        turnOffSmsNotifications,
+        turnOnPushNotifications,
+        turnOffPushNotifications,
+        logWasPromptedToEnableNotifications,
+        logout,
     },
 });
+
+async function initPlayer(): Promise<void> {
+    const playerStore = usePlayerStore();
+    const playerResponse = await fetch("/api/players/me");
+
+    const player = (await playerResponse.json()) as PlayerModel;
+    playerStore.player = player;
+
+    playerStore.isPlayerFetched = true;
+}
+
+async function updateUsername(username: string): Promise<void> {
+    const playerStore = usePlayerStore();
+    if (username === playerStore.player?.username) {
+        return;
+    }
+
+    const playerUpdateBody: PlayerUpdateModel = {
+        username,
+    };
+    await updatePlayer(playerUpdateBody);
+}
+
+async function requestPhoneVerification(phoneNumber: string): Promise<void> {
+    const phoneVerificationRequestBody: RequestPhoneVerificationModel = {
+        phoneNumber,
+    };
+    await fetch("/api/players/me/request-phone-verification", {
+        method: "post",
+        headers: {
+            "content-type": "application/json",
+        },
+        body: JSON.stringify(phoneVerificationRequestBody),
+    });
+}
+
+async function verifyPhone(code: string): Promise<VerifyPhoneResponseModel> {
+    const playerStore = usePlayerStore();
+    const phoneValidationBody: VerifyPhoneRequestModel = {
+        code,
+    };
+    const response = (await fetch("/api/players/me/verify-phone", {
+        method: "post",
+        headers: {
+            "content-type": "application/json",
+        },
+        body: JSON.stringify(phoneValidationBody),
+    }).then((response) => response.json())) as VerifyPhoneResponseModel;
+
+    if (response.success) {
+        if (response.didMerge) {
+            await useAppStore().initApp();
+        } else {
+            playerStore.player = response.player;
+        }
+    }
+
+    return response;
+}
+
+async function setPhoneNumberCollectPreference(
+    shouldCollectPhoneNumber: boolean,
+) {
+    const playerUpdateBody: PlayerUpdateModel = {
+        shouldCollectPhoneNumber,
+    };
+
+    await updatePlayer(playerUpdateBody);
+}
+
+async function turnOnSmsNotifications() {
+    const playerUpdateBody: PlayerUpdateModel = {
+        sendSmsNotifications: true,
+    };
+
+    await updatePlayer(playerUpdateBody);
+}
+
+async function turnOffSmsNotifications() {
+    const playerUpdateBody: PlayerUpdateModel = {
+        sendSmsNotifications: false,
+    };
+
+    await updatePlayer(playerUpdateBody);
+}
+
+async function turnOnPushNotifications() {
+    const result = await Notification.requestPermission();
+    const sendNotifications = result === "granted";
+    if (!sendNotifications) {
+        return;
+    }
+
+    const registration = await navigator.serviceWorker.getRegistration();
+    const subscription = await registration?.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey:
+            "BJSK-EtWwl9dvDnnEbTJo86a9LvOuvEgPSLUEtlKgF1_X-ZrG1omQUlglV7vnsbE6ZmcTuaDB_A6zbbrw5hOoZA",
+    });
+
+    if (!subscription) {
+        return;
+    }
+
+    const subscriptionResponse = (await fetch(
+        "/api/players/me/push-subscriptions",
+        {
+            method: "post",
+            headers: {
+                "content-type": "application/json",
+            },
+            body: JSON.stringify(subscription),
+        },
+    ).then((response) => response.json())) as PushSubscriptionModel;
+
+    localStorage.setItem("pushSubscriptionId", subscriptionResponse._id);
+
+    await useAppStore().initPushSubscription();
+    await usePlayerStore().initPlayer();
+}
+
+async function turnOffPushNotifications() {
+    const appStore = useAppStore();
+    const pushSubscriptionId = appStore.pushSubscriptionId;
+
+    if (!pushSubscriptionId) {
+        return;
+    }
+
+    const pushSubscriptionUpdateBody: PushSubscriptionUpdateModel = {
+        isActive: false,
+    };
+
+    await fetch(`/api/players/me/push-subscriptions/${pushSubscriptionId}`, {
+        method: "put",
+        headers: {
+            "content-type": "application/json",
+        },
+        body: JSON.stringify(pushSubscriptionUpdateBody),
+    }).then((response) => response.json());
+
+    await usePlayerStore().initPlayer();
+}
+
+function logWasPromptedToEnableNotifications() {
+    const playerStore = usePlayerStore();
+    localStorage.setItem(
+        `wasPromptedToEnableNotifications:${playerStore.player?._id}`,
+        "true",
+    );
+}
+
+async function logout() {
+    const appStore = useAppStore();
+    await fetch("/api/players/me/logout", {
+        method: "post",
+    });
+
+    await appStore.initApp();
+}
 
 async function updatePlayer(params: PlayerUpdateModel) {
     const playerStore = usePlayerStore();
@@ -127,38 +222,3 @@ async function updatePlayer(params: PlayerUpdateModel) {
         body: JSON.stringify(params),
     }).then((response) => response.json())) as PlayerModel;
 }
-
-async function turnOnNativeNotifications() {
-    const result = await Notification.requestPermission();
-    const sendNotifications = result === "granted";
-    const playerUpdateBody: PlayerUpdateModel = {
-        sendNotifications,
-    };
-
-    if (sendNotifications) {
-        const registration = await navigator.serviceWorker.getRegistration();
-        const subscription = await registration?.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey:
-                "BJSK-EtWwl9dvDnnEbTJo86a9LvOuvEgPSLUEtlKgF1_X-ZrG1omQUlglV7vnsbE6ZmcTuaDB_A6zbbrw5hOoZA",
-        });
-
-        if (subscription) {
-            playerUpdateBody.pushSubscription = subscription.toJSON();
-        }
-    }
-
-    await fetch("/api/players/me", {
-        method: "put",
-        headers: {
-            "content-type": "application/json",
-        },
-        body: JSON.stringify(playerUpdateBody),
-    });
-}
-
-// function turnOnSmsNotifications() {
-//     const playerStore = usePlayerStore();
-//     if (!playerStore.player?.phoneNumber) {
-//     }
-// }
