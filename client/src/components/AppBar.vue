@@ -36,6 +36,53 @@ const menuItems = [
             void router.push("/settings");
         }
     },
+    {
+        name: "Logout",
+        icon: "mdi-logout",
+        async action() {
+            appStore.shouldShowAppDrawer = false;
+            await playerStore.logout();
+        }
+    },
+];
+
+const secondaryMenuItems = [
+    {
+        name: "Refresh",
+        condition: null,
+        action: () => {
+            const currentGame = getCurrentGame();
+            if (currentGame) {
+                void gamesStore.refreshGame(currentGame._id);
+            }
+            ensureWebsocketConnected();
+        }
+    },
+    {
+        name: "Mark game complete",
+        condition: shouldShowMarkGameComplete,
+        action: () => {
+            const currentGame = getCurrentGame();
+            if (currentGame) {
+                void gamesStore.markGameComplete(currentGame._id);
+            }
+        }
+    },
+    {
+        name: "Resend invite",
+        condition: () => {
+            const currentGame = getCurrentGame();
+            if (currentGame) {
+                return !currentGame.otherPlayer;
+            }
+        },
+        action: () => {
+            const currentGame = getCurrentGame();
+            if (currentGame) {
+                void gamesStore.invitePlayer(currentGame._id, false);
+            }
+        }
+    }
 ];
 
 const icon = computed(getIcon);
@@ -64,9 +111,10 @@ function getCurrentGame() {
 }
 
 function getTitle() {
+    const playerStore = usePlayerStore();
     const pageName = getPageName();
     if (pageName === "home") {
-        return "Active Games";
+        return playerStore.player?.username ? `Welcome, ${playerStore.player.username}!` : "Active Games";
     } else if (pageName === "games") {
         const otherPlayerUsername = getOtherPlayerUsername();
         return otherPlayerUsername ?
@@ -99,50 +147,12 @@ async function handleBackButtonPress() {
     await goBack();
 }
 
-function refreshGame() {
-    const currentGame = getCurrentGame();
-    if (currentGame) {
-        void gamesStore.refreshGame(currentGame._id);
-    }
-
-    ensureWebsocketConnected();
-}
-
 function shouldShowMarkGameComplete() {
-    return router.currentRoute.value.name === "games";
-}
-
-function markGameComplete() {
     const currentGame = getCurrentGame();
-    if (currentGame) {
-        void gamesStore.markGameComplete(currentGame._id);
-    }
-}
-
-function canInvite() {
-    const currentGame = getCurrentGame();
-    if (currentGame) {
-        return !currentGame.otherPlayer;
-    }
-}
-
-function sendInvite() {
-    const currentGame = getCurrentGame();
-    if (currentGame) {
-        void gamesStore.invitePlayer(currentGame._id, false);
-    }
-}
-
-function canNudge() {
-    const currentGame = getCurrentGame();
-    return currentGame?.canNudge;
-}
-
-function sendNudge() {
-    const currentGame = getCurrentGame();
-    if (currentGame) {
-        void gamesStore.sendNudge(currentGame._id);
-    }
+    return router.currentRoute.value.name === "games" &&
+        currentGame &&
+        currentGame.playerOneTurns.length > 0 &&
+        currentGame.playerTwoTurns.length > 0;
 }
 
 function shouldShowMessagesIcon() {
@@ -201,22 +211,15 @@ async function createGameAndNavigate() {
             </v-badge>
             <v-icon v-else>mdi-message-text</v-icon>
         </v-btn>
-        <v-btn v-if="currentGame" icon>
+        <v-btn v-if="currentGame && !currentGame.isGameComplete" icon>
             <v-icon>mdi-dots-vertical</v-icon>
             <v-menu activator="parent">
                 <v-list>
-                    <v-list-item @click="refreshGame">
-                        Refresh
-                    </v-list-item>
-                    <v-list-item v-if="shouldShowMarkGameComplete()" @click="markGameComplete">
-                        Mark game complete
-                    </v-list-item>
-                    <v-list-item :disabled="!canNudge()" @click="sendNudge">
-                        Nudge {{ getCurrentGame()?.otherPlayer?.username }}
-                    </v-list-item>
-                    <v-list-item v-if="canInvite()" @click="sendInvite">
-                        Resend invite
-                    </v-list-item>
+                    <template v-for="(menuItem, idx) in secondaryMenuItems" :key="idx">
+                        <v-list-item v-if="menuItem.condition ? menuItem.condition() : true" @click="menuItem.action">
+                            {{ menuItem.name }}
+                        </v-list-item>
+                    </template>
                 </v-list>
             </v-menu>
         </v-btn>
