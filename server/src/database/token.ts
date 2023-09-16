@@ -1,3 +1,4 @@
+import { Filter, UpdateFilter } from "mongodb";
 import generateId from "../utils/idGenerator";
 import { dbConnect } from ".";
 
@@ -8,7 +9,7 @@ export interface TokenModel {
 }
 
 class TokensDbApi {
-    async get(tokenValue: string) {
+    async get({ tokenValue }: { tokenValue: string }) {
         const db = await dbConnect();
         const tokens = db.collection<TokenModel>("tokens");
         return await tokens.findOne({
@@ -16,16 +17,43 @@ class TokensDbApi {
         });
     }
 
-    async create(tokenValue: string, playerId: string) {
+    async create({
+        playerId,
+        tokenValue,
+    }: {
+        tokenValue: string;
+        playerId: string;
+    }) {
         const db = await dbConnect();
         const tokens = db.collection<TokenModel>("tokens");
         const newToken: TokenModel = {
             _id: generateId(),
-            playerId: playerId,
+            playerId,
             value: tokenValue,
         };
 
         return await tokens.insertOne(newToken);
+    }
+
+    async update({
+        playerId,
+        tokenValue,
+    }: {
+        tokenValue: string;
+        playerId: string;
+    }) {
+        const db = await dbConnect();
+        const tokens = db.collection<TokenModel>("tokens");
+        const filter: Filter<TokenModel> = {
+            value: tokenValue,
+        };
+        const update: UpdateFilter<TokenModel> = {
+            $set: {
+                playerId,
+            },
+        };
+
+        return await tokens.findOneAndUpdate(filter, update);
     }
 }
 
