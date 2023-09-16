@@ -4,16 +4,18 @@ import gamesDbApi from "../database/games";
 import {
     type AllGamesResponseModel,
     type GameResponseModel,
-    type GameUpdateModel,
+    type GameCreateModel,
     type GameWebsocketUpdateModel,
     type TurnCreateModel,
     type MessageUpdateModel,
     type MessageCreateModel,
+    TurnModel,
+    GameUpdateModel,
 } from "../../../shared/models/GameModels";
 import { type ResponseLocals } from "../models";
 import { sendWebsocketMessage } from "../websocket";
 import { generateTurn } from "../utils/saymbot";
-import sendNotification from "../utils/sendNotification";
+import sendNotification, { NotificationModel } from "../utils/sendNotification";
 
 const gamesApi = express.Router();
 
@@ -23,7 +25,7 @@ gamesApi.get(
         const {
             locals: { playerId },
         } = res;
-        const allGames = await gamesDbApi.getAll(playerId);
+        const allGames = await gamesDbApi.getAll({ playerId });
         const response: AllGamesResponseModel = {
             currentGames: [],
             finishedGames: [],
@@ -44,7 +46,7 @@ gamesApi.post(
         req: Request<
             Record<string, string>,
             GameResponseModel,
-            GameUpdateModel
+            GameCreateModel
         >,
         res: Response<GameResponseModel, ResponseLocals>,
     ) => {
@@ -52,15 +54,14 @@ gamesApi.post(
             locals: { playerId },
         } = res;
         const {
-            body: { playerOneId, playerTwoId },
+            body: { playerTwoId },
         } = req;
-        const newGameResponse = await gamesDbApi.create(
-            playerOneId ?? playerId,
-            playerTwoId ?? null,
-        );
+        const newGameResponse = await gamesDbApi.create({
+            playerOneId: playerId,
+            playerTwoId: playerTwoId ?? null,
+        });
 
         if (playerTwoId === botName) {
-            await invite(newGameResponse!._id, playerId, true);
             scheduleBotTurn(newGameResponse!);
         }
 
@@ -77,35 +78,72 @@ gamesApi.get(
         const {
             locals: { playerId },
         } = res;
-        const foundGame = await gamesDbApi.get(playerId, gameId);
+        const foundGame = await gamesDbApi.get({ playerId, gameId });
         res.send(foundGame ?? void 0);
     },
 );
 
-gamesApi.post(
-    "/:gameId/join",
-    async (req, res: Response<GameResponseModel, ResponseLocals>) => {
+gamesApi.put(
+    "/:gameId",
+    async (
+        req: Request<
+            Record<string, string>,
+            GameResponseModel,
+            GameUpdateModel
+        >,
+        res: Response<GameResponseModel, ResponseLocals>,
+    ) => {
         const {
             params: { gameId },
         } = req;
         const {
             locals: { playerId },
         } = res;
+        const updateBody = req.body;
+        const currentGame = await gamesDbApi.get({ playerId, gameId });
 
-        const joinedGame = await gamesDbApi.update(
+        if (!currentGame && !updateBody.playerTwoId) {
+            res.status(404).send();
+            return;
+        }
+
+        if (
+            Boolean(
+                updateBody.playerTwoId && // can't join anyone but yourself or the both to a game
+                    updateBody.playerTwoId !== playerId &&
+                    updateBody.playerTwoId !== botName,
+            ) ||
+            Boolean(
+                updateBody.playerOneSawFinishedGame && // can't mark the other player as having seen the game
+                    playerId !== currentGame?.playerOne._id,
+            ) ||
+            Boolean(
+                updateBody.playerTwoSawFinishedGame &&
+                    playerId !== currentGame?.playerTwo?._id,
+            )
+        ) {
+            res.status(400).send();
+            return;
+        }
+
+        const updatedGame = await gamesDbApi.update({
             playerId,
             gameId,
-            playerId,
-            null,
-            null,
-            null,
-            null,
-            null,
-        );
+            ...updateBody,
+        });
 
-        if (joinedGame) {
-            res.send(joinedGame);
-            sendWebsocketGameUpdate(playerId, joinedGame);
+        if (updatedGame) {
+            res.send(updatedGame);
+
+            if (
+                currentGame &&
+                !currentGame.playerTwo &&
+                updatedGame.playerTwo?._id === botName
+            ) {
+                scheduleBotTurn(updatedGame);
+            }
+
+            sendWebsocketGameUpdate(playerId, updatedGame);
         } else {
             res.status(404).send();
         }
@@ -124,20 +162,22 @@ gamesApi.post(
     ) => {
         const {
             params: { gameId },
-            body: { turn },
+            body: { text },
         } = req;
         const {
             locals: { playerId },
         } = res;
 
-        const updatedGame = await addTurnToGame(turn, playerId, gameId);
+        const updatedGame = await addTurnToGame(text, playerId, gameId);
         if (
             !updatedGame.isGameComplete &&
             updatedGame.playerTwo?._id === botName
         ) {
             scheduleBotTurn(updatedGame);
         }
+
         res.send(updatedGame);
+        await notifyOtherPlayerOfMove(playerId, updatedGame);
     },
 );
 
@@ -161,20 +201,23 @@ gamesApi.post(
             body: { text },
         } = req;
 
-        if (!text) {
+        const currentGame = await gamesDbApi.get({ playerId, gameId });
+
+        if (!text || currentGame?.isGameComplete) {
             res.status(400).send();
             return;
         }
 
-        const gameResponse = await gamesDbApi.createMessage(
+        const gameResponse = await gamesDbApi.createMessage({
             playerId,
             gameId,
             text,
-        );
+        });
 
         if (gameResponse) {
             res.send(gameResponse);
             sendWebsocketGameUpdate(playerId, gameResponse);
+            await notifyOtherPlayerOfMessage(playerId, gameResponse);
         } else {
             res.status(404).send();
         }
@@ -201,14 +244,12 @@ gamesApi.put(
             body: { readByOtherPlayer },
         } = req;
 
-        console.log("received update message request", req.body);
-
-        const updatedGame = await gamesDbApi.updateMessage(
+        const updatedGame = await gamesDbApi.updateMessage({
             playerId,
             gameId,
             messageId,
             readByOtherPlayer,
-        );
+        });
 
         if (updatedGame) {
             res.send(updatedGame);
@@ -219,150 +260,73 @@ gamesApi.put(
     },
 );
 
-gamesApi.post(
-    "/:gameId/complete",
-    async (req, res: Response<GameResponseModel, ResponseLocals>) => {
-        const {
-            params: { gameId },
-        } = req;
-        const {
-            locals: { playerId },
-        } = res;
-        const currentGame = await gamesDbApi.get(playerId, gameId);
+async function notifyOtherPlayerOfMove(
+    playerId: string,
+    game: GameResponseModel,
+) {
+    const currentPlayer = getCurrentPlayer(playerId, game);
+    const currentPlayerUsername = currentPlayer?.username ?? "Your friend";
+    const url = `https://${process.env.SAYM_DOMAIN}/games/${game._id}`;
+    const message = `${currentPlayerUsername} just made a move in your game!`;
+    const notification: NotificationModel = {
+        url,
+        pushTitle: "It's your move!",
+        pushMessage: message,
+        smsMessage: `${message} https://saym.castberg.media/games/${game._id}`,
+    };
 
-        if (!currentGame) {
-            res.status(404).send();
-            return;
-        }
+    await notifyOtherPlayer(playerId, game, notification);
+}
 
-        const completedGame = await gamesDbApi.update(
-            playerId,
-            gameId,
-            null,
-            null,
-            null,
-            null,
-            null,
-            true,
-        );
-
-        if (completedGame) {
-            res.send(completedGame);
-            sendWebsocketGameUpdate(playerId, completedGame);
-        } else {
-            res.status(500).send();
-        }
-    },
-);
-
-gamesApi.post(
-    "/:gameId/invite",
-    async (req, res: Response<GameResponseModel, ResponseLocals>) => {
-        const {
-            params: { gameId },
-        } = req;
-        const {
-            locals: { playerId },
-        } = res;
-
-        const updatedGame = await invite(gameId, playerId, false);
-
-        res.send(updatedGame);
-    },
-);
-
-gamesApi.post(
-    "/:gameId/invite-bot",
-    async (req, res: Response<GameResponseModel, ResponseLocals>) => {
-        const {
-            params: { gameId },
-        } = req;
-        const {
-            locals: { playerId },
-        } = res;
-
-        const updatedGame = await invite(gameId, playerId, true);
-        scheduleBotTurn(updatedGame);
-
-        res.send(updatedGame);
-    },
-);
-
-gamesApi.post(
-    "/:gameId/nudge",
-    async (req, res: Response<GameResponseModel, ResponseLocals>) => {
-        const {
-            params: { gameId },
-        } = req;
-        const {
-            locals: { playerId },
-        } = res;
-
-        const game = await gamesDbApi.get(playerId, gameId);
-
-        if (game) {
-            const [currentPlayer, otherPlayer] = isPlayerOne(playerId, game)
-                ? [game.playerOne, game.playerTwo]
-                : [game.playerTwo, game.playerOne];
-
-            const currentPlayerUsername =
-                currentPlayer?.username ?? "Your friend";
-
-            if (otherPlayer && !game.nudgeWasSent) {
-                await sendNotification(otherPlayer._id, {
-                    gameId,
-                    pushTitle: "It's your move!",
-                    pushMessage: `${currentPlayerUsername} sent you a nudge - tap here to make a move in your game`,
-                    smsMessage: `${currentPlayerUsername} sent you a nudge - make a move in your game: https://saym.castberg.media/games/${gameId}`,
-                });
-
-                await gamesDbApi.update(
-                    playerId,
-                    gameId,
-                    null,
-                    null,
-                    null,
-                    null,
-                    true,
-                    null,
-                );
+async function notifyOtherPlayerOfMessage(
+    playerId: string,
+    game: GameResponseModel,
+) {
+    const currentPlayer = getCurrentPlayer(playerId, game);
+    let foundLastMessage = false;
+    const secondToLastMessage = game.messages.findLast((message) => {
+        if (message._id === playerId) {
+            if (foundLastMessage) {
+                return message;
             }
 
-            res.send();
-        } else {
-            res.status(404).send();
+            foundLastMessage = true;
         }
-    },
-);
 
-async function invite(
-    gameId: string,
-    playerId: string,
-    inviteBot: boolean,
-): Promise<GameResponseModel> {
-    return new Promise(async (resolve, reject) => {
-        const currentGame = await gamesDbApi.get(playerId, gameId);
+        return false;
+    });
 
-        if (!currentGame) {
-            reject(404);
+    if (secondToLastMessage) {
+        const twoMinutesAgo = new Date().getTime() - 120000;
+        const sentTime = new Date(secondToLastMessage.timestamp).getTime();
+
+        if (sentTime < twoMinutesAgo) {
             return;
         }
+    }
 
-        const updatedGame = await gamesDbApi.update(
-            playerId,
-            gameId,
-            inviteBot ? botName : null,
-            null,
-            null,
-            false,
-            null,
-            null,
-        );
+    const currentPlayerUsername = currentPlayer?.username ?? "Your friend";
+    const url = `https://${process.env.SAYM_DOMAIN}/games/${game._id}/messages`;
+    const notification: NotificationModel = {
+        url,
+        pushTitle: "You got a message!",
+        pushMessage: `${currentPlayerUsername}: sent you a message - tap here to respond`,
+        smsMessage: `${currentPlayerUsername} sent you a message - respond here: ${url}`,
+    };
 
-        if (updatedGame) {
-            resolve(updatedGame);
-        }
-    });
+    await notifyOtherPlayer(playerId, game, notification);
+}
+
+async function notifyOtherPlayer(
+    playerId: string,
+    game: GameResponseModel,
+    notification: NotificationModel,
+) {
+    const otherPlayer = getOtherPlayer(playerId, game);
+
+    if (otherPlayer) {
+        await sendNotification(otherPlayer._id, notification);
+    }
 }
 
 async function addTurnToGame(
@@ -371,7 +335,7 @@ async function addTurnToGame(
     gameId: string,
 ): Promise<GameResponseModel> {
     return new Promise(async (resolve, reject) => {
-        const currentGame = await gamesDbApi.get(playerId, gameId);
+        const currentGame = await gamesDbApi.get({ playerId, gameId });
         const sanitizedTurn = sanitize(turn);
 
         if (!currentGame) {
@@ -382,7 +346,7 @@ async function addTurnToGame(
             return;
         }
 
-        let isGameComplete: boolean | null = null;
+        let isGameComplete: boolean | undefined;
 
         const [
             playerOneTurn,
@@ -392,12 +356,12 @@ async function addTurnToGame(
         ] = isPlayerOne(playerId, currentGame)
             ? [
                   sanitizedTurn,
-                  null,
+                  undefined,
                   currentGame.playerOneTurns,
                   currentGame.playerTwoTurns,
               ]
             : [
-                  null,
+                  undefined,
                   sanitizedTurn,
                   currentGame.playerTwoTurns,
                   currentGame.playerOneTurns,
@@ -417,21 +381,13 @@ async function addTurnToGame(
             isGameComplete = true;
         }
 
-        const updatedNudgeWasSent =
-            currentPlayerTurns.length + 1 === otherPlayerTurns.length
-                ? false
-                : null; // reset nudge status if we are starting a new round
-
-        const updatedGame = await gamesDbApi.update(
+        const updatedGame = await gamesDbApi.update({
             playerId,
             gameId,
-            null,
             playerOneTurn,
             playerTwoTurn,
-            null,
-            updatedNudgeWasSent,
             isGameComplete,
-        );
+        });
 
         if (updatedGame) {
             resolve(updatedGame);
@@ -448,7 +404,7 @@ function sendWebsocketGameUpdate(
 ) {
     const otherPlayerId = isPlayerOne(playerId, updatedGame)
         ? updatedGame.playerTwo?._id
-        : updatedGame.playerOne?._id;
+        : updatedGame.playerOne._id;
     if (otherPlayerId) {
         sendWebsocketMessage(
             otherPlayerId,
@@ -461,7 +417,15 @@ function sendWebsocketGameUpdate(
 }
 
 function isPlayerOne(playerId: string, game: GameResponseModel) {
-    return game.playerOne?._id === playerId;
+    return game.playerOne._id === playerId;
+}
+
+function getCurrentPlayer(playerId: string, game: GameResponseModel) {
+    return isPlayerOne(playerId, game) ? game.playerOne : game.playerTwo;
+}
+
+function getOtherPlayer(playerId: string, game: GameResponseModel) {
+    return isPlayerOne(playerId, game) ? game.playerTwo : game.playerOne;
 }
 
 function sanitize(turn: string): string {
@@ -470,8 +434,8 @@ function sanitize(turn: string): string {
 
 function isValidTurn(
     turn: string,
-    currentPlayerTurns: string[],
-    otherPlayerTurns: string[],
+    currentPlayerTurns: TurnModel[],
+    otherPlayerTurns: TurnModel[],
 ): boolean {
     const maxTurnLength = 25;
     return (
@@ -484,13 +448,15 @@ function isValidTurn(
 
 function isWinningTurn(
     turn: string,
-    currentPlayerTurns: string[],
-    otherPlayerTurns: string[],
+    currentPlayerTurns: TurnModel[],
+    otherPlayerTurns: TurnModel[],
 ): boolean {
     return (
         currentPlayerTurns.length === otherPlayerTurns.length - 1 &&
         turn.trim().toLowerCase() ===
-            otherPlayerTurns[otherPlayerTurns.length - 1].trim().toLowerCase()
+            otherPlayerTurns[otherPlayerTurns.length - 1].text
+                .trim()
+                .toLowerCase()
     );
 }
 
