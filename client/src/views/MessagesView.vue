@@ -84,9 +84,9 @@ function getMessageClass(message: MessageModel) {
                 </div>
                 <v-form class="d-flex align-center justify-center py-2 text-input"
                     @submit.prevent="handleMessageFormSubmit">
-                    <v-textarea v-model="messageInput" :disabled="gamesStore.activeGame.isGameComplete" rows="1" auto-grow
-                        persistent-clear clearable hide-details="auto" variant="solo" label="Message" required
-                        @click:clear="clearMessageInput" @focus="scrollInputIntoView" />
+                    <v-textarea v-model="messageInput" rows="1" auto-grow persistent-clear clearable hide-details="auto"
+                        variant="solo" label="Message" required @click:clear="clearMessageInput"
+                        @focus="scrollInputIntoView" />
                     <v-btn :disabled="messageInput.length === 0" type="submit" class="ml-2" size="x-large" density="compact"
                         icon="mdi-arrow-up-thick" />
                 </v-form>

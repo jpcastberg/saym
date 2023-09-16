@@ -201,9 +201,7 @@ gamesApi.post(
             body: { text },
         } = req;
 
-        const currentGame = await gamesDbApi.get({ playerId, gameId });
-
-        if (!text || currentGame?.isGameComplete) {
+        if (!text) {
             res.status(400).send();
             return;
         }

@@ -186,7 +186,7 @@ class GamesDbApi {
         const newMessage: MessageModel = {
             _id: generateId(),
             playerId,
-            text,
+            text: text.trim(),
             readByOtherPlayer: false,
             timestamp: new Date().toISOString(),
         };
