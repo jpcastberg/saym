@@ -1,4 +1,4 @@
-import  { type JestConfigWithTsJest } from "ts-jest";
+import { type JestConfigWithTsJest } from "ts-jest";
 
 // Sync object
 const config: JestConfigWithTsJest = {
@@ -6,6 +6,7 @@ const config: JestConfigWithTsJest = {
     testEnvironment: "node",
     setupFiles: ["dotenv/config"],
     verbose: true,
+    openHandlesTimeout: 0, // ignore open handles - caused by the websocket cleanup job
     transform: {
         "^.+\\.ts$": [
             "ts-jest",
