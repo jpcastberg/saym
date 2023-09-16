@@ -14,7 +14,12 @@ const scrollContainer: Ref<HTMLDivElement | null> = ref(null);
 const fireworksOptions = ref<FireworksOptions>({
     acceleration: 1,
     sound: {
-        enabled: true
+        enabled: true,
+        files: [
+            "/explosion0.mp3",
+            "/explosion1.mp3",
+            "/explosion2.mp3"
+        ]
     }
 });
 
