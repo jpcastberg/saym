@@ -10,8 +10,8 @@ const shouldDisplay = ref(isIos && !isInStandaloneMode);
 </script>
 
 <template>
-    <div class="mb-4">
-        <v-alert v-if="shouldDisplay" v-model="alertModel" class="text-center" closable>
+    <div v-if="shouldDisplay" class="mb-4">
+        <v-alert v-model="alertModel" class="text-center" closable>
             <template v-if="isMobileSafari">
                 Install this webapp on your iPhone:
                 <br>
