@@ -22,8 +22,9 @@
     "include": [
         "./client/env.d.ts",
         "./shared/**/*",
+        "./client/*.ts",
         "./client/src/**/*",
         "./client/src/**/*.vue",
-        "./client/vite.config.ts"
+        "./client/manifest.json"
     ]
 }
