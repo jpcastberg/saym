@@ -272,7 +272,7 @@ async function notifyOtherPlayerOfMove(
         url,
         pushTitle: "It's your move!",
         pushMessage: message,
-        smsMessage: `${message} https://saym.castberg.media/games/${game._id}`,
+        smsMessage: `${message} https://${process.env.SAYM_DOMAIN}/games/${game._id}`,
     };
 
     await notifyOtherPlayer(playerId, game, notification);
