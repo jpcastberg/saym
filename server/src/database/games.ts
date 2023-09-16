@@ -6,6 +6,7 @@ import {
 } from "mongodb";
 import {
     type GameResponseModel,
+    type TurnModel,
     type MessageModel,
 } from "../../../shared/models/GameModels";
 import generateId from "../utils/idGenerator";
@@ -15,59 +16,88 @@ export interface GameDbModel {
     _id: string;
     playerOneId: string;
     playerTwoId: string | null;
-    playerOneTurns: string[];
-    playerTwoTurns: string[];
+    playerOneTurns: TurnModel[];
+    playerTwoTurns: TurnModel[];
     isGameComplete: boolean;
     needToInvitePlayer: boolean;
-    nudgeWasSent: boolean;
+    playerOneSawFinishedGame: boolean;
+    playerTwoSawFinishedGame: boolean;
     messages: MessageModel[];
     lastUpdate: string;
 }
 
 class GamesDbApi {
-    async get(
-        playerId: string,
-        gameId: string,
-    ): Promise<GameResponseModel | undefined> {
+    async get({
+        playerId,
+        gameId,
+    }: {
+        playerId: string;
+        gameId: string;
+    }): Promise<GameResponseModel | undefined> {
         const matches = await this.getMatches(playerId, gameId, false);
         return matches[0];
     }
 
-    async getAll(playerId: string): Promise<GameResponseModel[]> {
+    async getAll({
+        playerId,
+    }: {
+        playerId: string;
+    }): Promise<GameResponseModel[]> {
         return await this.getMatches(playerId, null, false);
     }
 
-    async create(playerId: string, playerTwoId: string | null) {
+    async create({
+        playerOneId,
+        playerTwoId,
+    }: {
+        playerOneId: string;
+        playerTwoId: string | null;
+    }) {
         const db = await dbConnect();
         const games = db.collection<GameDbModel>("games");
         const newGameId = generateId();
         const newGame: GameDbModel = {
             _id: newGameId,
-            playerOneId: playerId,
+            playerOneId,
             playerTwoId,
             playerOneTurns: [],
             playerTwoTurns: [],
             isGameComplete: false,
             needToInvitePlayer: !playerTwoId,
-            nudgeWasSent: false,
             messages: [],
+            playerOneSawFinishedGame: false,
+            playerTwoSawFinishedGame: false,
             lastUpdate: new Date().toISOString(),
         };
 
         await games.insertOne(newGame);
-        return this.get(playerId, newGameId);
+        return this.get({
+            playerId: playerOneId,
+            gameId: newGameId,
+        });
     }
 
-    async update(
-        playerId: string,
-        gameId: string,
-        playerTwoId: string | null,
-        playerOneTurn: string | null,
-        playerTwoTurn: string | null,
-        needToInvitePlayer: boolean | null,
-        nudgeWasSent: boolean | null,
-        isGameComplete: boolean | null,
-    ) {
+    async update({
+        playerId,
+        gameId,
+        playerTwoId,
+        playerOneTurn,
+        playerTwoTurn,
+        needToInvitePlayer,
+        isGameComplete,
+        playerOneSawFinishedGame,
+        playerTwoSawFinishedGame,
+    }: {
+        playerId: string;
+        gameId: string;
+        playerTwoId?: string;
+        playerOneTurn?: string;
+        playerTwoTurn?: string;
+        needToInvitePlayer?: boolean;
+        isGameComplete?: boolean;
+        playerOneSawFinishedGame?: boolean;
+        playerTwoSawFinishedGame?: boolean;
+    }) {
         const db = await dbConnect();
         const games = db.collection<GameDbModel>("games");
         const filter: Filter<GameDbModel> = {
@@ -79,7 +109,8 @@ class GamesDbApi {
             playerTwoId?: string;
             isGameComplete?: boolean;
             needToInvitePlayer?: boolean;
-            nudgeWasSent?: boolean;
+            playerOneSawFinishedGame?: boolean;
+            playerTwoSawFinishedGame?: boolean;
             lastUpdate: string;
         }
 
@@ -92,10 +123,6 @@ class GamesDbApi {
             $set.needToInvitePlayer = false;
         }
 
-        if (nudgeWasSent !== null) {
-            $set.nudgeWasSent = nudgeWasSent;
-        }
-
         if (playerTwoId) {
             $set.playerTwoId = playerTwoId;
             $set.needToInvitePlayer = false;
@@ -104,18 +131,35 @@ class GamesDbApi {
             };
         }
 
+        const timestamp = new Date().toISOString();
+        const _id = generateId();
+
         if (playerOneTurn) {
             gameUpdates.$push = {
-                playerOneTurns: playerOneTurn,
+                playerOneTurns: {
+                    _id,
+                    text: playerOneTurn,
+                    timestamp,
+                },
             };
         } else if (playerTwoTurn) {
             gameUpdates.$push = {
-                playerTwoTurns: playerTwoTurn,
+                playerTwoTurns: {
+                    _id,
+                    text: playerTwoTurn,
+                    timestamp,
+                },
             };
         }
 
         if (isGameComplete) {
-            $set.isGameComplete = isGameComplete;
+            $set.isGameComplete = true;
+        }
+
+        if (playerOneSawFinishedGame) {
+            $set.playerOneSawFinishedGame = true;
+        } else if (playerTwoSawFinishedGame) {
+            $set.playerTwoSawFinishedGame = true;
         }
 
         gameUpdates.$set = {
@@ -124,10 +168,18 @@ class GamesDbApi {
 
         await games.updateOne(filter, gameUpdates);
 
-        return await this.get(playerId, gameId);
+        return await this.get({ playerId, gameId });
     }
 
-    async createMessage(playerId: string, gameId: string, text: string) {
+    async createMessage({
+        playerId,
+        gameId,
+        text,
+    }: {
+        playerId: string;
+        gameId: string;
+        text: string;
+    }) {
         const db = await dbConnect();
         const games = db.collection<GameDbModel>("games");
 
@@ -149,15 +201,20 @@ class GamesDbApi {
         };
 
         await games.updateOne(filter, updatedThread);
-        return this.get(playerId, gameId);
+        return this.get({ playerId, gameId });
     }
 
-    async updateMessage(
-        playerId: string,
-        gameId: string,
-        messageId: string,
-        readByOtherPlayer: boolean,
-    ) {
+    async updateMessage({
+        playerId,
+        gameId,
+        messageId,
+        readByOtherPlayer,
+    }: {
+        playerId: string;
+        gameId: string;
+        messageId: string;
+        readByOtherPlayer: boolean;
+    }) {
         const db = await dbConnect();
         const games = db.collection<GameDbModel>("games");
 
@@ -175,7 +232,86 @@ class GamesDbApi {
         };
 
         await games.updateOne(filter, updatedThread, options);
-        return await this.get(playerId, gameId);
+        return await this.get({ playerId, gameId });
+    }
+
+    async mergeGames({
+        fromPlayerId,
+        toPlayerId,
+    }: {
+        fromPlayerId: string;
+        toPlayerId: string;
+    }) {
+        const db = await dbConnect();
+        const games = db.collection<GameDbModel>("games");
+
+        await games
+            .aggregate([
+                {
+                    $match: {
+                        $or: getPlayerFilterExpression(fromPlayerId, false),
+                    },
+                },
+                {
+                    $addFields: {
+                        playerOneId: {
+                            $cond: {
+                                if: {
+                                    $and: [
+                                        { $eq: ["$playerOneId", fromPlayerId] },
+                                        { $ne: ["$playerTwoId", toPlayerId] },
+                                    ],
+                                },
+                                then: toPlayerId,
+                                else: "$playerOneId",
+                            },
+                        },
+                        playerTwoId: {
+                            $cond: {
+                                if: {
+                                    $and: [
+                                        { $eq: ["$playerTwoId", fromPlayerId] },
+                                        { $ne: ["$playerOneId", toPlayerId] },
+                                    ],
+                                },
+                                then: toPlayerId,
+                                else: "$playerTwoId",
+                            },
+                        },
+                        messages: {
+                            $map: {
+                                input: "$messages",
+                                as: "message",
+                                in: {
+                                    _id: "$$message._id",
+                                    playerId: {
+                                        $cond: {
+                                            if: {
+                                                $eq: [
+                                                    "$$message.playerId",
+                                                    fromPlayerId,
+                                                ],
+                                            },
+                                            then: toPlayerId,
+                                            else: "$$message.playerId",
+                                        },
+                                    },
+                                    text: "$$message.text",
+                                    readByOtherPlayer:
+                                        "$$message.readByOtherPlayer",
+                                    timestamp: "$$message.timestamp",
+                                },
+                            },
+                        },
+                    },
+                },
+                {
+                    $merge: {
+                        into: "games",
+                    },
+                },
+            ])
+            .toArray();
     }
 
     private async getMatches(
@@ -231,11 +367,13 @@ class GamesDbApi {
                         "playerOneArray",
                         "playerTwoArray",
                         "playerOne.phoneNumber",
-                        "playerOne.isPhoneNumberValidated",
-                        "playerOne.pushSubscription",
+                        "playerOne.shouldCollectPhoneNumber",
+                        "playerOne.pushSubscriptions",
+                        "playerOne.sendSmsNotifications",
                         "playerTwo.phoneNumber",
-                        "playerTwo.isPhoneNumberValidated",
-                        "playerTwo.pushSubscription",
+                        "playerTwo.shouldCollectPhoneNumber",
+                        "playerTwo.pushSubscriptions",
+                        "playerTwo.sendSmsNotifications",
                     ],
                 },
                 {
