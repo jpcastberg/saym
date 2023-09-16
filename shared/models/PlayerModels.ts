@@ -3,27 +3,41 @@ export const botName = "Saymbot";
 export interface PublicPlayerModel {
     _id: string;
     username: string | null;
-    sendNotifications: boolean | null;
 }
 
 export interface PlayerModel extends PublicPlayerModel {
     phoneNumber: string | null;
-    isPhoneNumberValidated: boolean;
-    pushSubscription: PushSubscriptionJSON | null;
+    shouldCollectPhoneNumber: boolean;
+    pushSubscriptions: PushSubscriptionModel[];
+    sendSmsNotifications: boolean;
 }
 
 export interface PlayerUpdateModel {
     username?: string;
-    sendNotifications?: boolean;
-    phoneNumber?: string;
-    pushSubscription?: PushSubscriptionJSON;
+    shouldCollectPhoneNumber?: boolean;
+    sendSmsNotifications?: boolean;
 }
 
-export interface PhoneValidationRequestModel {
+export interface PushSubscriptionModel {
+    _id: string;
+    isActive: boolean;
+    subscription: PushSubscriptionJSON;
+}
+
+export interface PushSubscriptionUpdateModel {
+    isActive: boolean;
+}
+
+export interface RequestPhoneVerificationModel {
+    phoneNumber: string;
+}
+
+export interface VerifyPhoneRequestModel {
     code: string;
 }
 
-export interface PhoneValidationResponseModel {
+export interface VerifyPhoneResponseModel {
     success: boolean;
+    didMerge: boolean;
     player: PlayerModel | null;
 }
