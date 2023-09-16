@@ -3,17 +3,12 @@ import { computed, ref, onMounted, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import { Fireworks, type FireworksOptions } from "@fireworks-js/vue";
 import { useGamesStore } from "../stores/games";
-import { useAppStore } from "../stores/app";
 import scrollInputIntoView from "../utils/scrollInputIntoView";
-import InvitePlayerDialog from "../components/InvitePlayerDialog.vue";
-import GameNotFoundDialog from "../components/GameNotFoundDialog.vue";
 const router = useRouter();
 const gamesStore = useGamesStore();
 const turnInput = ref("");
-const appStore = useAppStore();
 const fireworksElement = ref<InstanceType<typeof Fireworks>>();
 const shouldRenderFireworks = ref(false);
-gamesStore.activeGameNotFound = false; // reset value
 const scrollContainer: Ref<HTMLDivElement | null> = ref(null);
 
 const fireworksOptions = ref<FireworksOptions>({
@@ -25,18 +20,20 @@ onMounted(async () => {
         top: scrollContainer.value.offsetHeight
     });
 
-    if (gamesStore.activeGame?.isGameComplete) {
+    if (gamesStore.activeGame?.isGameComplete && !gamesStore.activeGame.sawFinishedGame) {
+        void gamesStore.markFinishedGameAsSeen(gamesStore.activeGame._id);
         await triggerFireworks();
     } else {
         gamesStore.$subscribe(async () => {
-            if (gamesStore.activeGame?.isGameComplete) {
+            if (gamesStore.activeGame?.isGameComplete && !gamesStore.activeGame.sawFinishedGame) {
+                void gamesStore.markFinishedGameAsSeen(gamesStore.activeGame._id);
                 await triggerFireworks();
             }
         });
     }
 });
 
-if (getCurrentGameId() && !gamesStore.activeGame) {
+if (getCurrentGameId() && gamesStore.activeGameNotFound) {
     joinGame(getCurrentGameId());
 }
 
@@ -54,12 +51,7 @@ function getCurrentGameId() {
 }
 
 function joinGame(gameId: string) {
-    void gamesStore.joinGame(gameId)
-        .then((joinedGame) => {
-            if (!joinedGame) {
-                gamesStore.activeGameNotFound = true;
-            }
-        });
+    void gamesStore.joinGame(gameId);
 }
 
 const lastWord = computed(() => {
@@ -105,7 +97,7 @@ async function continuePlayingWithOtherPlayer() {
 <template>
     <main>
         <div v-if="gamesStore.activeGame" class="h-100">
-            <div class="h-100 d-flex flex-column justify-space-between pa-2">
+            <div class="h-100 d-flex flex-column justify-end pa-2">
                 <div ref="scrollContainer" class="d-flex flex-column scroll-container">
                     <p v-if="gamesStore.activeGame.otherPlayer?.username" class="text-caption text-center pb-2">
                         {{ gamesStore.activeGame.otherPlayer.username }} joined the game
@@ -114,7 +106,7 @@ async function continuePlayingWithOtherPlayer() {
                         <div class="w-100 d-flex align-center justify-space-between py-4">
                             <div class="w-100 text-center turn">
                                 <span>
-                                    {{ displayTurn.currentPlayerTurn }}
+                                    {{ displayTurn.currentPlayerTurn.text }}
                                 </span>
                             </div>
                             <div class="w-100 text-center">
@@ -124,7 +116,7 @@ async function continuePlayingWithOtherPlayer() {
                             </div>
                             <div :class="`w-100 text-center ${displayTurn.otherPlayerTurn ? 'turn' : ''}`">
                                 <span v-if="displayTurn.otherPlayerTurn">
-                                    {{ displayTurn.otherPlayerTurn }}
+                                    {{ displayTurn.otherPlayerTurn.text }}
                                 </span>
                             </div>
                         </div>
@@ -140,7 +132,7 @@ async function continuePlayingWithOtherPlayer() {
                         </v-card-title>
                         <v-card-subtitle>
                             You and {{ gamesStore.activeGame.otherPlayer?.username }} said the saym
-                            word{{ lastWord ? `: ${lastWord}` : "" }}.
+                            word{{ lastWord ? `: ${lastWord.text}` : "" }}.
                         </v-card-subtitle>
                     </v-card-item>
                     <v-divider />
@@ -163,10 +155,7 @@ async function continuePlayingWithOtherPlayer() {
                         icon="mdi-arrow-up-thick" />
                 </v-form>
             </div>
-            <invite-player-dialog v-if="appStore.shouldShowInvitePlayerDialog"
-                :game-needing-invite="gamesStore.activeGame" />
         </div>
-        <game-not-found-dialog />
     </main>
 </template>
 
