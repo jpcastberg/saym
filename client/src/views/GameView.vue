@@ -12,22 +12,23 @@ const shouldRenderFireworks = ref(false);
 const scrollContainer: Ref<HTMLDivElement | null> = ref(null);
 
 const fireworksOptions = ref<FireworksOptions>({
-    acceleration: 1
+    acceleration: 1,
+    sound: {
+        enabled: true
+    }
 });
 
-onMounted(async () => {
+onMounted(() => {
     scrollContainer.value?.scrollTo({
         top: scrollContainer.value.offsetHeight
     });
 
     if (gamesStore.activeGame?.isGameComplete && !gamesStore.activeGame.sawFinishedGame) {
-        void gamesStore.markFinishedGameAsSeen(gamesStore.activeGame._id);
-        await triggerFireworks();
+        triggerEndgame();
     } else {
-        gamesStore.$subscribe(async () => {
+        gamesStore.$subscribe(() => {
             if (gamesStore.activeGame?.isGameComplete && !gamesStore.activeGame.sawFinishedGame) {
-                void gamesStore.markFinishedGameAsSeen(gamesStore.activeGame._id);
-                await triggerFireworks();
+                triggerEndgame();
             }
         });
     }
@@ -35,6 +36,16 @@ onMounted(async () => {
 
 if (getCurrentGameId() && gamesStore.activeGameNotFound) {
     joinGame(getCurrentGameId());
+}
+
+function triggerEndgame() {
+    if (!gamesStore.activeGame) {
+        return;
+    }
+
+    void new Audio("/tada.mp3").play();
+    void triggerFireworks();
+    void gamesStore.markFinishedGameAsSeen(gamesStore.activeGame._id);
 }
 
 async function triggerFireworks() {
