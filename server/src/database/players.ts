@@ -1,10 +1,13 @@
-import { type UpdateFilter, type Filter } from "mongodb";
-import { type PlayerModel } from "../../../shared/models/PlayerModels";
+import { type UpdateFilter, type Filter, UpdateOptions } from "mongodb";
+import {
+    type PushSubscriptionModel,
+    type PlayerModel,
+} from "../../../shared/models/PlayerModels";
 import generateId from "../utils/idGenerator";
 import { dbConnect } from ".";
 
 class PlayersDbApi {
-    async get(playerId: string) {
+    async get({ playerId }: { playerId: string }) {
         const db = await dbConnect();
         const players = db.collection<PlayerModel>("players");
         return players.findOne({
@@ -12,72 +15,135 @@ class PlayersDbApi {
         });
     }
 
+    async getByPhoneNumber({ phoneNumber }: { phoneNumber: string }) {
+        const db = await dbConnect();
+        const players = db.collection<PlayerModel>("players");
+        return players.findOne({
+            phoneNumber,
+        });
+    }
+
     async create() {
         const db = await dbConnect();
         const players = db.collection<PlayerModel>("players");
+        const _id = generateId();
         const newPlayer: PlayerModel = {
-            _id: generateId(),
+            _id,
             username: null,
-            sendNotifications: null,
+            sendSmsNotifications: false,
             phoneNumber: null,
-            isPhoneNumberValidated: false,
-            pushSubscription: null,
+            shouldCollectPhoneNumber: true,
+            pushSubscriptions: [],
         };
 
-        return await players.insertOne(newPlayer);
+        await players.insertOne(newPlayer);
+        return await players.findOne({
+            _id,
+        });
     }
 
-    async update(
-        playerId: string,
-        username: string | null,
-        sendNotifications: boolean | null,
-        phoneNumber: string | null,
-        isPhoneNumberValidated: boolean | null,
-        pushSubscription: PushSubscriptionJSON | null,
-    ) {
+    async update({
+        playerId,
+        username,
+        sendSmsNotifications,
+        phoneNumber,
+        pushSubscription,
+        shouldCollectPhoneNumber,
+    }: {
+        playerId: string;
+        username?: string;
+        sendSmsNotifications?: boolean;
+        phoneNumber?: string;
+        pushSubscription?: PushSubscriptionModel;
+        shouldCollectPhoneNumber?: boolean;
+    }) {
         const db = await dbConnect();
         const players = db.collection<PlayerModel>("players");
 
         interface SetModel {
             username?: string;
-            sendNotifications?: boolean;
+            sendSmsNotifications?: boolean;
             phoneNumber?: string;
-            isPhoneNumberValidated?: boolean;
-            pushSubscription?: PushSubscriptionJSON;
+            shouldCollectPhoneNumber?: boolean;
         }
 
+        const playerUpdates: UpdateFilter<PlayerModel> = {};
         const $set: SetModel = {};
 
         if (username) {
             $set.username = username;
         }
 
-        if (sendNotifications !== null) {
-            $set.sendNotifications = sendNotifications;
+        if (typeof sendSmsNotifications === "boolean") {
+            $set.sendSmsNotifications = sendSmsNotifications;
         }
 
         if (phoneNumber) {
             $set.phoneNumber = phoneNumber;
         }
 
-        if (isPhoneNumberValidated !== null) {
-            $set.isPhoneNumberValidated = isPhoneNumberValidated;
+        if (pushSubscription) {
+            playerUpdates.$push = {
+                pushSubscriptions: pushSubscription,
+            };
         }
 
-        if (pushSubscription) {
-            $set.pushSubscription = pushSubscription;
+        if (typeof shouldCollectPhoneNumber === "boolean") {
+            $set.shouldCollectPhoneNumber = shouldCollectPhoneNumber;
         }
-        const updatedPlayer: UpdateFilter<PlayerModel> = {
-            $set: {
-                ...$set,
-            },
+
+        playerUpdates.$set = {
+            ...$set,
         };
+
         const filter: Filter<PlayerModel> = {
             _id: playerId,
         };
 
-        await players.updateOne(filter, updatedPlayer);
-        return this.get(playerId);
+        await players.updateOne(filter, playerUpdates);
+        return this.get({ playerId });
+    }
+
+    async updatePushSubscription({
+        playerId,
+        pushSubscriptionId,
+        isActive,
+    }: {
+        playerId: string;
+        pushSubscriptionId: string;
+        isActive: boolean;
+    }) {
+        const db = await dbConnect();
+        const players = db.collection<PlayerModel>("players");
+
+        const filter: Filter<PlayerModel> = {
+            _id: playerId,
+        };
+        const updatedPushSubscription: UpdateFilter<PlayerModel> = {
+            $set: {
+                "pushSubscriptions.$[pushSubscription].isActive": isActive,
+            },
+        };
+        const options: UpdateOptions = {
+            arrayFilters: [{ "pushSubscription._id": pushSubscriptionId }],
+        };
+
+        await players.updateOne(filter, updatedPushSubscription, options);
+        const updatedPlayer = await this.get({ playerId });
+        return updatedPlayer?.pushSubscriptions.find(
+            (subscription) => subscription._id === pushSubscriptionId,
+        );
+    }
+
+    async delete({ playerId }: { playerId: string }) {
+        const db = await dbConnect();
+        const players = db.collection<PlayerModel>("players");
+        const filter: Filter<PlayerModel> = {
+            _id: playerId,
+        };
+
+        const deleteResult = await players.deleteOne(filter);
+        return deleteResult;
     }
 }
 
