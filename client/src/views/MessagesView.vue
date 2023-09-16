@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, type Ref } from "vue";
+import { ref, onMounted, onUnmounted, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import scrollInputIntoView from "../utils/scrollInputIntoView";
 import { useGamesStore } from "../stores/games";
@@ -16,6 +16,12 @@ onMounted(() => {
     scrollContainer.value?.scrollTo({
         top: scrollContainer.value.offsetHeight
     });
+
+    document.addEventListener("visibilitychange", refreshGame);
+});
+
+onUnmounted(() => {
+    document.removeEventListener("visibilitychange", refreshGame);
 });
 
 void (async function () {
@@ -27,6 +33,12 @@ void (async function () {
 })();
 
 gamesStore.$subscribe(markLastMessageRead);
+
+async function refreshGame() {
+    if (gamesStore.activeGame) {
+        await gamesStore.refreshGame(gamesStore.activeGame._id);
+    }
+}
 
 async function markLastMessageRead() {
     if (gamesStore.activeGame) {

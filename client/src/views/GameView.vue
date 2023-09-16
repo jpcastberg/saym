@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, type Ref } from "vue";
+import { computed, ref, onMounted, onUnmounted, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import { Fireworks, type FireworksOptions } from "@fireworks-js/vue";
 import { useGamesStore } from "../stores/games";
@@ -37,10 +37,22 @@ onMounted(() => {
             }
         });
     }
+
+    document.addEventListener("visibilitychange", refreshGame);
+});
+
+onUnmounted(() => {
+    document.removeEventListener("visibilitychange", refreshGame);
 });
 
 if (getCurrentGameId() && gamesStore.activeGameNotFound) {
     joinGame(getCurrentGameId());
+}
+
+async function refreshGame() {
+    if (gamesStore.activeGame) {
+        await gamesStore.refreshGame(gamesStore.activeGame._id);
+    }
 }
 
 function triggerEndgame() {
