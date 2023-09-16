@@ -82,218 +82,247 @@ export const useGamesStore = defineStore("games", {
         },
     },
     actions: {
-        async initGames() {
-            if (isInitializationInProgress) {
-                const initializationDeferred = getDeferred();
-                pendingInitializationCallbacks.push(
-                    initializationDeferred.resolve ?? (() => void 0),
-                );
-                return initializationDeferred.promise;
-            }
-            const allGames = (await fetch("/api/games").then((response) =>
-                response.json(),
-            )) as AllGamesResponseModel;
-
-            this.currentGames = toGamesMap(allGames.currentGames);
-            this.finishedGames = toGamesMap(allGames.finishedGames);
-            this.areGamesInitialized = true;
-
-            while (pendingInitializationCallbacks.length) {
-                const callback = pendingInitializationCallbacks.shift();
-                callback && callback();
-            }
-        },
-        async createGame(): Promise<ComputedGameModel> {
-            const newGame = (await fetch("/api/games", { method: "post" }).then(
-                (response) => response.json(),
-            )) as GameResponseModel;
-            this.currentGames.set(newGame._id, computeGameMetadata(newGame));
-
-            return this.currentGames.get(newGame._id)!;
-        },
-        async joinGame(gameId: string): Promise<ComputedGameModel | null> {
-            const playerStore = usePlayerStore();
-            const body: GameUpdateModel = {
-                playerTwoId: playerStore.player?._id,
-            };
-            const joinedGame = (await fetch(`/api/games/${gameId}`, {
-                method: "put",
-                body: JSON.stringify(body),
-                headers: {
-                    "content-type": "application/json",
-                },
-            }).then((response) => {
-                return response.ok ? response.json() : null;
-            })) as GameResponseModel | null;
-
-            if (joinedGame) {
-                this.currentGames.set(
-                    joinedGame._id,
-                    computeGameMetadata(joinedGame),
-                );
-
-                return this.currentGames.get(joinedGame._id)!;
-            }
-
-            return null;
-        },
-        async refreshGame(gameId: string) {
-            const refreshedGame = (await fetch(`/api/games/${gameId}`).then(
-                (response) => response.json(),
-            )) as GameResponseModel;
-
-            this.updateGame(computeGameMetadata(refreshedGame));
-        },
-        async markGameComplete(gameId: string) {
-            const body: GameUpdateModel = {
-                isGameComplete: true,
-            };
-            const completedGame = (await fetch(`/api/games/${gameId}`, {
-                method: "put",
-                body: JSON.stringify(body),
-                headers: {
-                    "content-type": "application/json",
-                },
-            }).then((response) => response.json())) as GameResponseModel;
-
-            this.updateGame(computeGameMetadata(completedGame));
-        },
-        updateGame(game: ComputedGameModel) {
-            if (this.currentGames.has(game._id)) {
-                const matchingGame = this.currentGames.get(game._id);
-                if (game.isGameComplete) {
-                    this.currentGames.delete(game._id);
-                    this.finishedGames.set(game._id, matchingGame);
-                }
-
-                Object.assign(matchingGame!, game);
-            }
-        },
-        async createGameWithPlayer(
-            playerTwoId: string,
-        ): Promise<ComputedGameModel> {
-            await this.initGames();
-            const existingGameWithOtherPlayer = [
-                ...this.currentGames.values(),
-            ].find((game) => game?.otherPlayer?._id === playerTwoId);
-            if (existingGameWithOtherPlayer) {
-                return existingGameWithOtherPlayer;
-            }
-            const newGame = (await fetch("/api/games", {
-                method: "post",
-                body: JSON.stringify({ playerTwoId }),
-                headers: { "content-type": "application/json" },
-            }).then((response) => response.json())) as GameResponseModel;
-            const computedNewGame = computeGameMetadata(newGame);
-            this.currentGames.set(newGame._id, computedNewGame);
-
-            return computedNewGame;
-        },
-        async invitePlayer(gameId: string, inviteBot: boolean) {
-            const playerStore = usePlayerStore();
-            if (inviteBot) {
-                return this.inviteBot(gameId);
-            }
-
-            const shareLink = `${location.protocol}//${location.host}/games/${gameId}`;
-            const isNativeSharingAvailable = "share" in navigator;
-
-            if (isNativeSharingAvailable) {
-                await navigator.share({
-                    title: "Come play Saym!",
-                    text: `${playerStore.player?.username} is inviting you to play Saym with them. Follow this link to join: ${shareLink}`,
-                    url: shareLink,
-                });
-            } else {
-                await navigator.clipboard.writeText(shareLink);
-            }
-        },
-        async logGameInvite(gameId: string) {
-            const body: GameUpdateModel = {
-                needToInvitePlayer: false,
-            };
-            const gameResponse = (await fetch(`/api/games/${gameId}`, {
-                method: "put",
-                body: JSON.stringify(body),
-                headers: {
-                    "content-type": "application/json",
-                },
-            }).then((response) => response.json())) as GameResponseModel;
-            this.updateGame(computeGameMetadata(gameResponse));
-        },
-        async inviteBot(gameId: string) {
-            const body: GameUpdateModel = {
-                playerTwoId: botName,
-            };
-            const gameResponse = (await fetch(`/api/games/${gameId}`, {
-                method: "put",
-                body: JSON.stringify(body),
-                headers: {
-                    "content-type": "application/json",
-                },
-            }).then((response) => response.json())) as GameResponseModel;
-            this.updateGame(computeGameMetadata(gameResponse));
-        },
-        async submitTurn(gameId: string, text: string) {
-            const gameResponse = (await fetch(`/api/games/${gameId}/turns`, {
-                method: "post",
-                body: JSON.stringify({ text }),
-                headers: {
-                    "content-type": "application/json",
-                },
-            }).then((response) => response.json())) as GameResponseModel;
-
-            this.updateGame(computeGameMetadata(gameResponse));
-        },
-        async submitMessage(gameId: string, text: string) {
-            const gameResponse = (await fetch(`/api/games/${gameId}/messages`, {
-                method: "post",
-                body: JSON.stringify({ text }),
-                headers: {
-                    "content-type": "application/json",
-                },
-            }).then((response) => response.json())) as GameResponseModel;
-
-            this.updateGame(computeGameMetadata(gameResponse));
-        },
-        async markMessageRead(gameId: string, messageId: string) {
-            const gameResponse = (await fetch(
-                `/api/games/${gameId}/messages/${messageId}`,
-                {
-                    method: "put",
-                    body: JSON.stringify({ readByOtherPlayer: true }),
-                    headers: {
-                        "content-type": "application/json",
-                    },
-                },
-            ).then((response) => response.json())) as GameResponseModel;
-
-            this.updateGame(computeGameMetadata(gameResponse));
-        },
-        async markFinishedGameAsSeen(gameId: string) {
-            const playerStore = usePlayerStore();
-            const game =
-                this.currentGames.get(gameId) ?? this.finishedGames.get(gameId);
-            const isPlayerOne = game?.playerOne._id === playerStore.player?._id;
-            const body: GameUpdateModel = {
-                [isPlayerOne
-                    ? "playerOneSawFinishedGame"
-                    : "playerTwoSawFinishedGame"]: true,
-            };
-            if (game?.isGameComplete) {
-                const gameResponse = (await fetch(`/api/games/${gameId}`, {
-                    method: "put",
-                    body: JSON.stringify(body),
-                    headers: {
-                        "content-type": "application/json",
-                    },
-                }).then((response) => response.json())) as GameResponseModel;
-
-                this.updateGame(computeGameMetadata(gameResponse));
-            }
-        },
+        initGames,
+        createGame,
+        joinGame,
+        refreshGame,
+        markGameComplete,
+        updateGame,
+        createGameWithPlayer,
+        invitePlayer,
+        logGameInvite,
+        inviteBot,
+        submitTurn,
+        submitMessage,
+        markMessageRead,
+        markFinishedGameAsSeen,
     },
 });
+
+async function initGames() {
+    const gamesStore = useGamesStore();
+    if (isInitializationInProgress) {
+        const initializationDeferred = getDeferred();
+        pendingInitializationCallbacks.push(
+            initializationDeferred.resolve ?? (() => void 0),
+        );
+        return initializationDeferred.promise;
+    }
+    const allGames = (await fetch("/api/games").then((response) =>
+        response.json(),
+    )) as AllGamesResponseModel;
+
+    gamesStore.currentGames = toGamesMap(allGames.currentGames);
+    gamesStore.finishedGames = toGamesMap(allGames.finishedGames);
+    gamesStore.areGamesInitialized = true;
+
+    while (pendingInitializationCallbacks.length) {
+        const callback = pendingInitializationCallbacks.shift();
+        callback && callback();
+    }
+}
+async function createGame(): Promise<ComputedGameModel> {
+    const gamesStore = useGamesStore();
+    const newGame = (await fetch("/api/games", { method: "post" }).then(
+        (response) => response.json(),
+    )) as GameResponseModel;
+    gamesStore.currentGames.set(newGame._id, computeGameMetadata(newGame));
+
+    return gamesStore.currentGames.get(newGame._id)!;
+}
+async function joinGame(gameId: string): Promise<ComputedGameModel | null> {
+    const gamesStore = useGamesStore();
+    const playerStore = usePlayerStore();
+    const body: GameUpdateModel = {
+        playerTwoId: playerStore.player?._id,
+    };
+    const joinedGame = (await fetch(`/api/games/${gameId}`, {
+        method: "put",
+        body: JSON.stringify(body),
+        headers: {
+            "content-type": "application/json",
+        },
+    }).then((response) => {
+        return response.ok ? response.json() : null;
+    })) as GameResponseModel | null;
+
+    if (joinedGame) {
+        gamesStore.currentGames.set(
+            joinedGame._id,
+            computeGameMetadata(joinedGame),
+        );
+
+        return gamesStore.currentGames.get(joinedGame._id)!;
+    }
+
+    return null;
+}
+async function refreshGame(gameId: string) {
+    const gamesStore = useGamesStore();
+    const refreshedGame = (await fetch(`/api/games/${gameId}`).then(
+        (response) => response.json(),
+    )) as GameResponseModel;
+
+    gamesStore.updateGame(computeGameMetadata(refreshedGame));
+}
+async function markGameComplete(gameId: string) {
+    const gamesStore = useGamesStore();
+    const body: GameUpdateModel = {
+        isGameComplete: true,
+    };
+    const completedGame = (await fetch(`/api/games/${gameId}`, {
+        method: "put",
+        body: JSON.stringify(body),
+        headers: {
+            "content-type": "application/json",
+        },
+    }).then((response) => response.json())) as GameResponseModel;
+
+    gamesStore.updateGame(computeGameMetadata(completedGame));
+}
+function updateGame(game: ComputedGameModel) {
+    const gamesStore = useGamesStore();
+    if (gamesStore.currentGames.has(game._id)) {
+        const matchingGame = gamesStore.currentGames.get(game._id);
+        if (game.isGameComplete) {
+            gamesStore.currentGames.delete(game._id);
+            gamesStore.finishedGames.set(game._id, matchingGame);
+        }
+
+        Object.assign(matchingGame!, game);
+    }
+}
+async function createGameWithPlayer(
+    playerTwoId: string,
+): Promise<ComputedGameModel> {
+    const gamesStore = useGamesStore();
+    await gamesStore.initGames();
+    const existingGameWithOtherPlayer = [
+        ...gamesStore.currentGames.values(),
+    ].find((game) => game?.otherPlayer?._id === playerTwoId);
+    if (existingGameWithOtherPlayer) {
+        return existingGameWithOtherPlayer;
+    }
+    const newGame = (await fetch("/api/games", {
+        method: "post",
+        body: JSON.stringify({ playerTwoId }),
+        headers: { "content-type": "application/json" },
+    }).then((response) => response.json())) as GameResponseModel;
+    const computedNewGame = computeGameMetadata(newGame);
+    gamesStore.currentGames.set(newGame._id, computedNewGame);
+
+    return computedNewGame;
+}
+async function invitePlayer(gameId: string, inviteBot: boolean) {
+    const gamesStore = useGamesStore();
+    const playerStore = usePlayerStore();
+    if (inviteBot) {
+        return gamesStore.inviteBot(gameId);
+    }
+
+    const shareLink = `${location.protocol}//${location.host}/games/${gameId}`;
+    const isNativeSharingAvailable = "share" in navigator;
+
+    if (isNativeSharingAvailable) {
+        await navigator.share({
+            title: "Come play Saym!",
+            text: `${playerStore.player?.username} is inviting you to play Saym with them. Follow this link to join: ${shareLink}`,
+            url: shareLink,
+        });
+    } else {
+        await navigator.clipboard.writeText(shareLink);
+    }
+}
+async function logGameInvite(gameId: string) {
+    const gamesStore = useGamesStore();
+    const body: GameUpdateModel = {
+        needToInvitePlayer: false,
+    };
+    const gameResponse = (await fetch(`/api/games/${gameId}`, {
+        method: "put",
+        body: JSON.stringify(body),
+        headers: {
+            "content-type": "application/json",
+        },
+    }).then((response) => response.json())) as GameResponseModel;
+    gamesStore.updateGame(computeGameMetadata(gameResponse));
+}
+async function inviteBot(gameId: string) {
+    const gamesStore = useGamesStore();
+    const body: GameUpdateModel = {
+        playerTwoId: botName,
+    };
+    const gameResponse = (await fetch(`/api/games/${gameId}`, {
+        method: "put",
+        body: JSON.stringify(body),
+        headers: {
+            "content-type": "application/json",
+        },
+    }).then((response) => response.json())) as GameResponseModel;
+    gamesStore.updateGame(computeGameMetadata(gameResponse));
+}
+async function submitTurn(gameId: string, text: string) {
+    const gamesStore = useGamesStore();
+    const gameResponse = (await fetch(`/api/games/${gameId}/turns`, {
+        method: "post",
+        body: JSON.stringify({ text }),
+        headers: {
+            "content-type": "application/json",
+        },
+    }).then((response) => response.json())) as GameResponseModel;
+
+    gamesStore.updateGame(computeGameMetadata(gameResponse));
+}
+async function submitMessage(gameId: string, text: string) {
+    const gamesStore = useGamesStore();
+    const gameResponse = (await fetch(`/api/games/${gameId}/messages`, {
+        method: "post",
+        body: JSON.stringify({ text }),
+        headers: {
+            "content-type": "application/json",
+        },
+    }).then((response) => response.json())) as GameResponseModel;
+
+    gamesStore.updateGame(computeGameMetadata(gameResponse));
+}
+async function markMessageRead(gameId: string, messageId: string) {
+    const gamesStore = useGamesStore();
+    const gameResponse = (await fetch(
+        `/api/games/${gameId}/messages/${messageId}`,
+        {
+            method: "put",
+            body: JSON.stringify({ readByOtherPlayer: true }),
+            headers: {
+                "content-type": "application/json",
+            },
+        },
+    ).then((response) => response.json())) as GameResponseModel;
+
+    gamesStore.updateGame(computeGameMetadata(gameResponse));
+}
+async function markFinishedGameAsSeen(gameId: string) {
+    const gamesStore = useGamesStore();
+    const playerStore = usePlayerStore();
+    const game =
+        gamesStore.currentGames.get(gameId) ??
+        gamesStore.finishedGames.get(gameId);
+    const isPlayerOne = game?.playerOne._id === playerStore.player?._id;
+    const body: GameUpdateModel = {
+        [isPlayerOne ? "playerOneSawFinishedGame" : "playerTwoSawFinishedGame"]:
+            true,
+    };
+    if (game?.isGameComplete) {
+        const gameResponse = (await fetch(`/api/games/${gameId}`, {
+            method: "put",
+            body: JSON.stringify(body),
+            headers: {
+                "content-type": "application/json",
+            },
+        }).then((response) => response.json())) as GameResponseModel;
+
+        gamesStore.updateGame(computeGameMetadata(gameResponse));
+    }
+}
 
 listenForEvent("gameUpdate", (updatedGame) => {
     console.log("RECEIVED GAME UPDATE:", updatedGame);
