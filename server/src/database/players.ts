@@ -30,7 +30,6 @@ class PlayersDbApi {
         const newPlayer: PlayerModel = {
             _id,
             username: null,
-            sendSmsNotifications: false,
             phoneNumber: null,
             shouldCollectPhoneNumber: true,
             pushSubscriptions: [],
@@ -45,14 +44,12 @@ class PlayersDbApi {
     async update({
         playerId,
         username,
-        sendSmsNotifications,
         phoneNumber,
         pushSubscription,
         shouldCollectPhoneNumber,
     }: {
         playerId: string;
         username?: string;
-        sendSmsNotifications?: boolean;
         phoneNumber?: string;
         pushSubscription?: PushSubscriptionModel;
         shouldCollectPhoneNumber?: boolean;
@@ -62,7 +59,6 @@ class PlayersDbApi {
 
         interface SetModel {
             username?: string;
-            sendSmsNotifications?: boolean;
             phoneNumber?: string;
             shouldCollectPhoneNumber?: boolean;
         }
@@ -72,10 +68,6 @@ class PlayersDbApi {
 
         if (username) {
             $set.username = username;
-        }
-
-        if (typeof sendSmsNotifications === "boolean") {
-            $set.sendSmsNotifications = sendSmsNotifications;
         }
 
         if (phoneNumber) {

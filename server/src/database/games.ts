@@ -369,11 +369,9 @@ class GamesDbApi {
                         "playerOne.phoneNumber",
                         "playerOne.shouldCollectPhoneNumber",
                         "playerOne.pushSubscriptions",
-                        "playerOne.sendSmsNotifications",
                         "playerTwo.phoneNumber",
                         "playerTwo.shouldCollectPhoneNumber",
                         "playerTwo.pushSubscriptions",
-                        "playerTwo.sendSmsNotifications",
                     ],
                 },
                 {

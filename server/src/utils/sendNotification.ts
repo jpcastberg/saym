@@ -1,14 +1,6 @@
 import webPush from "web-push";
 import playersDbApi from "../database/players";
 import { type PushNotificationModel } from "../../../shared/models/NotificationModels";
-import sendSms from "./sendSms";
-
-export interface NotificationModel {
-    url: string | null;
-    pushTitle: string;
-    pushMessage: string;
-    smsMessage: string | null;
-}
 
 webPush.setVapidDetails(
     "mailto:john@castberg.media",
@@ -16,22 +8,12 @@ webPush.setVapidDetails(
     process.env.VAPID_PRIVATE_KEY!,
 );
 
-async function sendNotification(
-    playerId: string,
-    notification: NotificationModel,
-) {
-    const player = await playersDbApi.get({ playerId });
+async function sendNotification(notification: PushNotificationModel) {
+    const player = await playersDbApi.get({ playerId: notification.playerId });
 
     if (!player) {
         return;
     }
-
-    const pushNotification: PushNotificationModel = {
-        playerId,
-        url: notification.url,
-        title: notification.pushTitle,
-        message: notification.pushMessage,
-    };
 
     for (const pushSubscription of player.pushSubscriptions) {
         if (!pushSubscription.isActive) {
@@ -46,16 +28,8 @@ async function sendNotification(
                     auth: pushSubscription.subscription.keys!.auth,
                 },
             },
-            JSON.stringify(pushNotification),
+            JSON.stringify(notification),
         );
-    }
-
-    if (
-        player.phoneNumber &&
-        player.sendSmsNotifications &&
-        notification.smsMessage
-    ) {
-        await sendSms(player.phoneNumber, notification.smsMessage);
     }
 }
 

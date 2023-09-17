@@ -95,7 +95,7 @@ describe("access tokens", () => {
 
 describe("games", () => {
     it("should return the player's games, separated by current and finished", async () => {
-        const playerOne = await createNewPlayer("player one", false);
+        const playerOne = await createNewPlayer("player one");
 
         let allGamesResponse = await getAllGames(playerOne.token);
         expect(allGamesResponse.currentGames).toHaveLength(0);
@@ -127,7 +127,7 @@ describe("games", () => {
     });
 
     it("should allow a player to create a new game", async () => {
-        const playerOne = await createNewPlayer("player one", false);
+        const playerOne = await createNewPlayer("player one");
         const newGame = await createGame(playerOne.token);
 
         expect(typeof newGame._id).toBe("string");
@@ -148,7 +148,7 @@ describe("games", () => {
     });
 
     it("should allow a player to get a game by id", async () => {
-        const playerOne = await createNewPlayer("player one", false);
+        const playerOne = await createNewPlayer("player one");
         const newGame = await createGame(playerOne.token);
 
         const gameResponse = (
@@ -163,8 +163,8 @@ describe("games", () => {
     });
 
     it("should allow a player to join an existing game", async () => {
-        const playerOne = await createNewPlayer("player one", false);
-        const playerTwo = await createNewPlayer("player two", false);
+        const playerOne = await createNewPlayer("player one");
+        const playerTwo = await createNewPlayer("player two");
         let game = await createGame(playerOne.token);
         console.log("created game", game);
         game = await joinGame(game._id, playerTwo.token, playerTwo._id);
@@ -188,9 +188,9 @@ describe("games", () => {
     });
 
     it("should not allow a player to join a game that already has two players", async () => {
-        const playerOne = await createNewPlayer("player one", false);
-        const playerTwo = await createNewPlayer("player two", false);
-        const playerThree = await createNewPlayer("player three", false);
+        const playerOne = await createNewPlayer("player one");
+        const playerTwo = await createNewPlayer("player two");
+        const playerThree = await createNewPlayer("player three");
         const game = await createGame(playerOne.token);
         await joinGame(game._id, playerTwo.token, playerTwo._id);
 
@@ -206,8 +206,8 @@ describe("games", () => {
     });
 
     it("should allow players to take turns until they match words", async () => {
-        const playerOne = await createNewPlayer("player one", false);
-        const playerTwo = await createNewPlayer("player two", false);
+        const playerOne = await createNewPlayer("player one");
+        const playerTwo = await createNewPlayer("player two");
         let game = await createGame(playerOne.token);
         game = await joinGame(game._id, playerTwo.token, playerTwo._id);
         game = await takeTurn(game._id, playerOne.token, "turn 1");
@@ -236,8 +236,8 @@ describe("games", () => {
     });
 
     it("should allow players to send messages to one another", async () => {
-        const playerOne = await createNewPlayer("player one", false);
-        const playerTwo = await createNewPlayer("player two", false);
+        const playerOne = await createNewPlayer("player one");
+        const playerTwo = await createNewPlayer("player two");
         const someMessage = "some message";
         const anotherMessage = "another message";
         let game = await createGame(playerOne.token);
@@ -270,7 +270,7 @@ describe("games", () => {
     });
 
     it("should allow for tracking if an invite has been sent for a game", async () => {
-        const playerOne = await createNewPlayer("player one", false);
+        const playerOne = await createNewPlayer("player one");
         let game = await createGame(playerOne.token);
         expect(game.needToInvitePlayer).toBe(true);
         game = (
@@ -286,7 +286,7 @@ describe("games", () => {
     });
 
     it("should allow playing a game against a bot", async () => {
-        const playerOne = await createNewPlayer("player one", false);
+        const playerOne = await createNewPlayer("player one");
         let game = await createGame(playerOne.token);
         game = (
             await apiRequest(
@@ -316,7 +316,7 @@ describe("games", () => {
 
 describe("players", () => {
     it("allows a player to log in with phone number", async () => {
-        const playerOne = await createNewPlayer("player one", false);
+        const playerOne = await createNewPlayer("player one");
         expect(playerOne.phoneNumber).toBeNull();
         const verificationResponse = await verifyPhoneNumber(playerOne.token);
         expect(verificationResponse.didMerge).toBe(false);
@@ -324,13 +324,13 @@ describe("players", () => {
     }, 10000);
 
     it("merges an un-logged in profile with a logged in one when login occurs", async () => {
-        let playerOne = await createNewPlayer("player one", false);
+        let playerOne = await createNewPlayer("player one");
         let verificationResponse = await verifyPhoneNumber(playerOne.token);
         playerOne = verificationResponse.player!;
         let playerOneGame = await createGame(playerOne.token);
 
-        let playerTwo = await createNewPlayer("player two", false);
-        let playerThree = await createNewPlayer("player three", false);
+        let playerTwo = await createNewPlayer("player two");
+        let playerThree = await createNewPlayer("player three");
         let playerTwoGame = await createGame(playerTwo.token);
         playerTwoGame = await joinGame(
             playerTwoGame._id,
@@ -380,11 +380,9 @@ async function createToken() {
 
 async function createNewPlayer(
     username: "player one" | "player two" | "player three",
-    sendSmsNotifications: boolean,
 ): Promise<TestPlayer> {
     const playerUpdates: PlayerUpdateModel = {
         username,
-        sendSmsNotifications,
     };
     const playerResponse = (await apiRequest(
         "put",

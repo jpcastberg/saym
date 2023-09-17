@@ -15,7 +15,8 @@ import {
 import { type ResponseLocals } from "../models";
 import { sendWebsocketMessage } from "../websocket";
 import { generateTurn } from "../utils/saymbot";
-import sendNotification, { NotificationModel } from "../utils/sendNotification";
+import sendNotification from "../utils/sendNotification";
+import { PushNotificationModel } from "../../../shared/models/NotificationModels";
 
 const gamesApi = express.Router();
 
@@ -265,12 +266,11 @@ async function notifyOtherPlayerOfMove(
     const currentPlayer = getCurrentPlayer(playerId, game);
     const currentPlayerUsername = currentPlayer?.username ?? "Your friend";
     const url = `https://${process.env.SAYM_DOMAIN}/games/${game._id}`;
-    const message = `${currentPlayerUsername} just made a move in your game!`;
-    const notification: NotificationModel = {
+    const notification: PushNotificationModel = {
+        playerId,
         url,
-        pushTitle: "It's your move!",
-        pushMessage: message,
-        smsMessage: `${message} https://${process.env.SAYM_DOMAIN}/games/${game._id}`,
+        title: "It's your move!",
+        message: `${currentPlayerUsername} just made a move in your game!`,
     };
 
     await notifyOtherPlayer(playerId, game, notification);
@@ -305,11 +305,11 @@ async function notifyOtherPlayerOfMessage(
 
     const currentPlayerUsername = currentPlayer?.username ?? "Your friend";
     const url = `https://${process.env.SAYM_DOMAIN}/games/${game._id}/messages`;
-    const notification: NotificationModel = {
+    const notification: PushNotificationModel = {
+        playerId,
         url,
-        pushTitle: "You got a message!",
-        pushMessage: `${currentPlayerUsername}: sent you a message - tap here to respond`,
-        smsMessage: `${currentPlayerUsername} sent you a message - respond here: ${url}`,
+        title: "You got a message!",
+        message: `${currentPlayerUsername}: sent you a message - tap here to respond`,
     };
 
     await notifyOtherPlayer(playerId, game, notification);
@@ -318,12 +318,12 @@ async function notifyOtherPlayerOfMessage(
 async function notifyOtherPlayer(
     playerId: string,
     game: GameResponseModel,
-    notification: NotificationModel,
+    notification: PushNotificationModel,
 ) {
     const otherPlayer = getOtherPlayer(playerId, game);
 
     if (otherPlayer) {
-        await sendNotification(otherPlayer._id, notification);
+        await sendNotification(notification);
     }
 }
 

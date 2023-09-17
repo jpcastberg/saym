@@ -9,13 +9,11 @@ export interface PlayerModel extends PublicPlayerModel {
     phoneNumber: string | null;
     shouldCollectPhoneNumber: boolean;
     pushSubscriptions: PushSubscriptionModel[];
-    sendSmsNotifications: boolean;
 }
 
 export interface PlayerUpdateModel {
     username?: string;
     shouldCollectPhoneNumber?: boolean;
-    sendSmsNotifications?: boolean;
 }
 
 export interface PushSubscriptionModel {

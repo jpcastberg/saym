@@ -58,18 +58,6 @@ playersApi.put(
             locals: { playerId },
         } = res;
         const { body: playerUpdateBody } = req;
-        const currentPlayer = await playersDbApi.get({ playerId });
-
-        if (
-            playerUpdateBody.sendSmsNotifications &&
-            !currentPlayer?.phoneNumber
-        ) {
-            res.status(400).send({
-                message:
-                    "Phone number is required to enable sms notifications.",
-            });
-            return;
-        }
 
         const updatedPlayer = await playersDbApi.update({
             ...playerUpdateBody,
@@ -79,9 +67,6 @@ playersApi.put(
 
         if (updatedPlayer) {
             res.send(updatedPlayer);
-            if (playerUpdateBody.sendSmsNotifications) {
-                await sendExampleSmsNotification(updatedPlayer.phoneNumber!);
-            }
         } else {
             res.status(404).send();
         }
@@ -270,20 +255,12 @@ playersApi.post(
 );
 
 async function sendExamplePushNotification(playerId: string) {
-    await sendNotification(playerId, {
+    await sendNotification({
+        playerId,
         url: null,
-        pushTitle: "Example Notification",
-        pushMessage: "This is how Saym notifications will appear",
-        smsMessage: null,
+        title: "Example Notification",
+        message: "This is how Saym notifications will appear",
     });
-}
-
-async function sendExampleSmsNotification(phoneNumber: string) {
-    await sendSms(
-        phoneNumber,
-        "This is how Saym notifications will appear. " +
-            "You can opt-out of notifications at any time by turning them off in Saym settings.",
-    );
 }
 
 function sendPhoneNumberValidationCode(token: string, phoneNumber: string) {

@@ -5,16 +5,7 @@ import { usePlayerStore } from "../stores/player";
 
 const appStore = useAppStore();
 const playerStore = usePlayerStore();
-const smsNotificationsSwitchValue = ref(playerStore.player?.sendSmsNotifications);
 const pushNotificationsSwitchValue = ref(playerStore.areNativeNotificationsOn);
-
-watch(smsNotificationsSwitchValue, async (newValue) => {
-    if (Boolean(newValue)) {
-        await playerStore.turnOnSmsNotifications();
-    } else {
-        await playerStore.turnOffSmsNotifications();
-    }
-});
 
 watch(pushNotificationsSwitchValue, async (newValue) => {
     if (Boolean(newValue)) {
@@ -63,10 +54,6 @@ function togglePhoneNumberEditDialog() {
                 </div>
             </v-list-item>
             <v-divider />
-            <v-list-item>
-                <v-switch v-model="smsNotificationsSwitchValue" :disabled="!playerStore.player?.phoneNumber" color="success"
-                    label="Send SMS Notifications" />
-            </v-list-item>
             <v-list-item>
                 <v-switch v-if="appStore.areNativeNotificationsSupported" v-model="pushNotificationsSwitchValue"
                     color="success" label="Send Push Notifications" />

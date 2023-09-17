@@ -82,23 +82,14 @@ export const useAppStore = defineStore("app", {
                 ) === "true";
 
             if (
-                wasPromptedToEnableNotifications ||
-                state.playerClosedNotificationsDialog
+                this.areNativeNotificationsSupported &&
+                !wasPromptedToEnableNotifications &&
+                !state.playerClosedNotificationsDialog
             ) {
-                return false;
+                return !playerStore.areNativeNotificationsOn;
             }
 
-            if (this.areNativeNotificationsSupported) {
-                return (
-                    !playerStore.areNativeNotificationsOn ||
-                    Boolean(playerStore.player?.sendSmsNotifications) // Both types of notifications are on. Let's double check they actually want that.
-                );
-            }
-
-            return Boolean(
-                playerStore.player?.phoneNumber &&
-                    !playerStore.player.sendSmsNotifications,
-            );
+            return false;
         },
         areNativeNotificationsSupported() {
             return "serviceWorker" in navigator && "PushManager" in window;
@@ -134,6 +125,13 @@ export const useAppStore = defineStore("app", {
             if (pushSubscription) {
                 this.pushSubscription = pushSubscription.toJSON();
             }
+        },
+        logWasPromptedToEnableNotifications() {
+            const playerStore = usePlayerStore();
+            localStorage.setItem(
+                `wasPromptedToEnableNotifications:${playerStore.player?._id}`,
+                "true",
+            );
         },
     },
 });

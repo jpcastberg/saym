@@ -42,11 +42,8 @@ export const usePlayerStore = defineStore("player", {
         requestPhoneVerification,
         verifyPhone,
         setPhoneNumberCollectPreference,
-        turnOnSmsNotifications,
-        turnOffSmsNotifications,
         turnOnPushNotifications,
         turnOffPushNotifications,
-        logWasPromptedToEnableNotifications,
         logout,
     },
 });
@@ -120,22 +117,6 @@ async function setPhoneNumberCollectPreference(
     await updatePlayer(playerUpdateBody);
 }
 
-async function turnOnSmsNotifications() {
-    const playerUpdateBody: PlayerUpdateModel = {
-        sendSmsNotifications: true,
-    };
-
-    await updatePlayer(playerUpdateBody);
-}
-
-async function turnOffSmsNotifications() {
-    const playerUpdateBody: PlayerUpdateModel = {
-        sendSmsNotifications: false,
-    };
-
-    await updatePlayer(playerUpdateBody);
-}
-
 async function turnOnPushNotifications() {
     const result = await Notification.requestPermission();
     const sendNotifications = result === "granted";
@@ -192,14 +173,6 @@ async function turnOffPushNotifications() {
     }).then((response) => response.json());
 
     await usePlayerStore().initPlayer();
-}
-
-function logWasPromptedToEnableNotifications() {
-    const playerStore = usePlayerStore();
-    localStorage.setItem(
-        `wasPromptedToEnableNotifications:${playerStore.player?._id}`,
-        "true",
-    );
 }
 
 async function logout() {

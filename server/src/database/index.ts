@@ -53,7 +53,6 @@ async function initBot() {
     const bot: PlayerModel = {
         _id: botName,
         username: botName,
-        sendSmsNotifications: false,
         phoneNumber: null,
         shouldCollectPhoneNumber: false,
         pushSubscriptions: [],
