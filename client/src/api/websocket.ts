@@ -8,7 +8,9 @@ let websocket = createWebSocketConnection();
 const eventNames = new Set<string>(["gameUpdate"]); // todo: proper enum
 
 document.addEventListener("visibilitychange", function () {
-    ensureWebsocketConnected();
+    if (document.visibilityState === "visible") {
+        ensureWebsocketConnected();
+    }
 });
 
 function createWebSocketConnection() {

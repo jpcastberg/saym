@@ -16,7 +16,10 @@
         "strictFunctionTypes": true,
         "strictNullChecks": true,
         "strictPropertyInitialization": true,
-        "target": "ESNext"
+        "target": "ESNext",
+        "types": [
+            "vite-plugin-pwa/client"
+        ]
     },
     "extends": "@vue/tsconfig/tsconfig.dom.json",
     "include": [

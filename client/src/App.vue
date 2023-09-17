@@ -3,17 +3,22 @@ import { ref } from "vue";
 import { RouterView } from "vue-router";
 import DialogWrapper from "./components/DialogWrapper.vue";
 import AppBar from "./components/AppBar.vue";
+import { useAppStore } from "./stores/app";
 import { useGamesStore } from "./stores/games";
-import { usePlayerStore } from "./stores/player";
-const playerStore = usePlayerStore();
+const gamesStore = useGamesStore();
 let initializationComplete = ref(false);
 
 void initialize();
 
 async function initialize() {
-    await playerStore.initPlayer();
-    await useGamesStore().initGames(); // game initialization depends on initialized player
+    await useAppStore().initApp();
     initializationComplete.value = true;
+
+    document.addEventListener("visibilitychange", async () => {
+        if (document.visibilityState === "visible" && gamesStore.activeGame) {
+            await gamesStore.refreshGame(gamesStore.activeGame._id);
+        }
+    });
 }
 </script>
 

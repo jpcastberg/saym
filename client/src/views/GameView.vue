@@ -34,12 +34,6 @@ onMounted(() => {
             }
         });
     }
-
-    document.addEventListener("visibilitychange", refreshGame);
-});
-
-onUnmounted(() => {
-    document.removeEventListener("visibilitychange", refreshGame);
 });
 
 if (getCurrentGameId() && gamesStore.activeGameNotFound) {
@@ -50,12 +44,6 @@ function scrollToBottom() {
     scrollContainer.value?.scrollTo({
         top: scrollContainer.value.offsetHeight
     });
-}
-
-async function refreshGame() {
-    if (gamesStore.activeGame) {
-        await gamesStore.refreshGame(gamesStore.activeGame._id);
-    }
 }
 
 function triggerEndgame() {

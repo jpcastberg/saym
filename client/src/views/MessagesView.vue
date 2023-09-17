@@ -12,14 +12,7 @@ const messageInput = ref("");
 
 const scrollContainer: Ref<HTMLDivElement | null> = ref(null);
 
-onMounted(() => {
-    scrollToBottom();
-    document.addEventListener("visibilitychange", refreshGame);
-});
-
-onUnmounted(() => {
-    document.removeEventListener("visibilitychange", refreshGame);
-});
+onMounted(scrollToBottom);
 
 void (async function () {
     if (getCurrentGameId() && !gamesStore.activeGame) {
@@ -35,12 +28,6 @@ function scrollToBottom() {
     scrollContainer.value?.scrollTo({
         top: scrollContainer.value.offsetHeight
     });
-}
-
-async function refreshGame() {
-    if (gamesStore.activeGame) {
-        await gamesStore.refreshGame(gamesStore.activeGame._id);
-    }
 }
 
 async function markLastMessageRead() {
