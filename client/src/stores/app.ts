@@ -120,8 +120,13 @@ export const useAppStore = defineStore("app", {
 
             const registration =
                 await navigator.serviceWorker.getRegistration();
+
+            if (!registration || !("pushManager" in registration)) {
+                return;
+            }
+
             const pushSubscription =
-                await registration?.pushManager.getSubscription();
+                await registration.pushManager.getSubscription();
             if (pushSubscription) {
                 this.pushSubscription = pushSubscription.toJSON();
             }

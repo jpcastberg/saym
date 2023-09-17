@@ -11,6 +11,7 @@ async function setNotificationPreference(event: SubmitEvent) {
         await playerStore.turnOnPushNotifications();
     }
 
+    appStore.playerClosedNotificationsDialog = true;
     appStore.logWasPromptedToEnableNotifications();
 }
 </script>

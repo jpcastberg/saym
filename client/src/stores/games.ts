@@ -112,8 +112,14 @@ async function initGames() {
         response.json(),
     )) as AllGamesResponseModel;
 
-    gamesStore.currentGames = toGamesMap(allGames.currentGames);
-    gamesStore.finishedGames = toGamesMap(allGames.finishedGames);
+    gamesStore.currentGames = toGamesMap(
+        allGames.currentGames,
+        currentGamesSortAlgorithm,
+    );
+    gamesStore.finishedGames = toGamesMap(
+        allGames.finishedGames,
+        finishedGamesSortAlgorithm,
+    );
     gamesStore.areGamesInitialized = true;
 
     while (pendingInitializationCallbacks.length) {
@@ -330,10 +336,13 @@ listenForEvent("gameUpdate", (updatedGame) => {
     gamesStore.updateGame(computeGameMetadata(updatedGame));
 });
 
-function toGamesMap(games: GameResponseModel[]) {
+function toGamesMap(
+    games: GameResponseModel[],
+    sortAlgorithm: (a: ComputedGameModel, b: ComputedGameModel) => -1 | 0 | 1,
+) {
     return games
         .map(computeGameMetadata)
-        .sort(gamesSortAlgorithm)
+        .sort(sortAlgorithm)
         .reduce((gamesMap: GamesMap, game) => {
             gamesMap.set(game._id, game);
             return gamesMap;
@@ -349,10 +358,21 @@ function getDeferred() {
     return deferred;
 }
 
-function gamesSortAlgorithm(a: ComputedGameModel, b: ComputedGameModel) {
+function currentGamesSortAlgorithm(a: ComputedGameModel, b: ComputedGameModel) {
     if (!a.hasPlayerPlayedRound && b.hasPlayerPlayedRound) {
         return -1;
     } else if (a.lastUpdate > b.lastUpdate) {
+        return -1;
+    }
+
+    return 1;
+}
+
+function finishedGamesSortAlgorithm(
+    a: ComputedGameModel,
+    b: ComputedGameModel,
+) {
+    if (a.lastUpdate > b.lastUpdate) {
         return -1;
     }
 

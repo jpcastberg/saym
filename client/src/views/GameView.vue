@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted, type Ref } from "vue";
+import { computed, ref, onMounted, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import { Fireworks, type FireworksOptions } from "@fireworks-js/vue";
 import { useGamesStore } from "../stores/games";
@@ -10,6 +10,8 @@ const turnInput = ref("");
 const fireworksElement = ref<InstanceType<typeof Fireworks>>();
 const shouldRenderFireworks = ref(false);
 const scrollContainer: Ref<HTMLDivElement | null> = ref(null);
+const isTurnSubmissionInProgress = ref(false);
+let endgameWasTriggered = false;
 
 const fireworksOptions = ref<FireworksOptions>({
     acceleration: 1,
@@ -47,10 +49,11 @@ function scrollToBottom() {
 }
 
 function triggerEndgame() {
-    if (!gamesStore.activeGame) {
+    if (!gamesStore.activeGame || endgameWasTriggered) {
         return;
     }
 
+    endgameWasTriggered = true;
     void new Audio("/tada.mp3").play();
     void triggerFireworks();
     void gamesStore.markFinishedGameAsSeen(gamesStore.activeGame._id);
@@ -83,12 +86,14 @@ const lastWord = computed(() => {
 
 async function handleTurnFormSubmit() {
     if (gamesStore.activeGame) {
+        isTurnSubmissionInProgress.value = true;
         await gamesStore.submitTurn(gamesStore.activeGame._id, turnInput.value);
     }
 
     turnInput.value = "";
 
     scrollToBottom();
+    isTurnSubmissionInProgress.value = false;
 }
 
 function getFormPrompt() {
@@ -166,10 +171,12 @@ async function continuePlayingWithOtherPlayer() {
                 </v-card>
                 <v-form v-else-if="!gamesStore.activeGame.hasPlayerPlayedRound && !gamesStore.activeGame.isGameComplete"
                     class="d-flex align-center justify-center py-2 text-input" @submit.prevent="handleTurnFormSubmit">
-                    <v-text-field v-model="turnInput" persistent-clear clearable hide-details="auto" variant="solo"
-                        :label="getFormPrompt()" required @click:clear="clearTurnInput" @focus="scrollInputIntoView" />
-                    <v-btn :disabled="turnInput.length === 0" type="submit" class="ml-2" size="x-large" density="compact"
-                        icon="mdi-arrow-up-thick" />
+                    <v-text-field v-model="turnInput" :disabled="isTurnSubmissionInProgress" persistent-clear clearable
+                        hide-details="auto" variant="solo" :label="getFormPrompt()" required @click:clear="clearTurnInput"
+                        @focus="scrollInputIntoView" />
+                    <v-progress-circular v-if="isTurnSubmissionInProgress" class="ml-2" indeterminate />
+                    <v-btn v-else :disabled="turnInput.length === 0" type="submit" class="ml-2" size="x-large"
+                        density="compact" icon="mdi-arrow-up-thick" />
                 </v-form>
             </div>
         </div>
