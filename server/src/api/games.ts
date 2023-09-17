@@ -67,6 +67,14 @@ gamesApi.post(
         }
 
         res.send(newGameResponse);
+
+        if (newGameResponse && playerTwoId) {
+            await notifyOtherPlayerOfNewGame(
+                playerId,
+                playerTwoId,
+                newGameResponse,
+            );
+        }
     },
 );
 
@@ -279,7 +287,7 @@ gamesApi.put(
     },
 );
 
-async function notifyOtherPlayerOfMove(
+async function notifyOtherPlayerOfNewGame(
     playerId: string,
     otherPlayerId: string,
     game: GameResponseModel,
@@ -290,8 +298,30 @@ async function notifyOtherPlayerOfMove(
     const notification: PushNotificationModel = {
         playerId: otherPlayerId,
         url,
-        title: "It's your move!",
-        message: `${currentPlayerUsername} just made a move in your game!`,
+        title: "Join The Saym Game!",
+        message: `${currentPlayerUsername} just started a new game with you. Tap here to join.`,
+    };
+
+    await sendNotification(notification);
+}
+
+async function notifyOtherPlayerOfMove(
+    playerId: string,
+    otherPlayerId: string,
+    game: GameResponseModel,
+) {
+    const currentPlayer = getCurrentPlayer(playerId, game);
+    const currentPlayerUsername = currentPlayer?.username ?? "Your friend";
+    const url = `https://${process.env.SAYM_DOMAIN}/games/${game._id}`;
+    const title = game.isGameComplete ? "Saym!" : "It's your move!";
+    const message = game.isGameComplete
+        ? `You and ${currentPlayerUsername} said the saym word!`
+        : `${currentPlayerUsername} just made a move in your game!`;
+    const notification: PushNotificationModel = {
+        playerId: otherPlayerId,
+        url,
+        title,
+        message,
     };
 
     await sendNotification(notification);
