@@ -305,9 +305,9 @@ async function notifyOtherPlayerOfMessage(
     const currentPlayer = getCurrentPlayer(playerId, game);
     let foundLastMessage = false;
     const secondToLastMessage = game.messages.findLast((message) => {
-        if (message._id === playerId) {
+        if (message.playerId === playerId) {
             if (foundLastMessage) {
-                return message;
+                return true;
             }
 
             foundLastMessage = true;
