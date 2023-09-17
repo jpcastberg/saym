@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, type Ref } from "vue";
+import { computed, ref, onMounted, onUnmounted, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import { Fireworks, type FireworksOptions } from "@fireworks-js/vue";
 import { useGamesStore } from "../stores/games";
@@ -27,15 +27,13 @@ const fireworksOptions = ref<FireworksOptions>({
 
 onMounted(() => {
     scrollToBottom();
-    if (gamesStore.activeGame?.isGameComplete && !gamesStore.activeGame.sawFinishedGame) {
-        triggerEndgame();
-    } else {
-        gamesStore.$subscribe(() => {
-            if (gamesStore.activeGame?.isGameComplete && !gamesStore.activeGame.sawFinishedGame) {
-                triggerEndgame();
-            }
-        });
-    }
+    triggerEndgameIfComplete();
+    gamesStore.$subscribe(triggerEndgameIfComplete);
+    document.addEventListener("visibilitychange", triggerEndgameIfComplete);
+});
+
+onUnmounted(() => {
+    document.removeEventListener("visibilitychange", triggerEndgameIfComplete);
 });
 
 if (getCurrentGameId() && gamesStore.activeGameNotFound) {
@@ -48,8 +46,14 @@ function scrollToBottom() {
     });
 }
 
-function triggerEndgame() {
-    if (!gamesStore.activeGame || endgameWasTriggered) {
+function triggerEndgameIfComplete() {
+    if (
+        !gamesStore.activeGame ||
+        !gamesStore.activeGame.isGameComplete ||
+        gamesStore.activeGame.sawFinishedGame ||
+        endgameWasTriggered ||
+        document.visibilityState === "hidden"
+    ) {
         return;
     }
 
