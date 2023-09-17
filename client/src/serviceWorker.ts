@@ -50,24 +50,14 @@ self.addEventListener("notificationclick", (event) => {
             includeUncontrolled: true,
         })
         .then((windowClients) => {
-            if (!url) {
-                return;
-            }
-
-            let matchingClient = null;
-
-            for (const windowClient of windowClients) {
-                if (windowClient.url === url) {
-                    matchingClient = windowClient;
-                    break;
-                }
-            }
-
-            if (matchingClient) {
-                return matchingClient.focus();
-            } else {
+            if (url) {
                 return self.clients.openWindow(url);
+            } else if (windowClients[0]) {
+                // most recently focused window
+                return windowClients[0].focus();
             }
+
+            return self.clients.openWindow("/");
         });
 
     event.waitUntil(promiseChain);
