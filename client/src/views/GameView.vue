@@ -24,10 +24,7 @@ const fireworksOptions = ref<FireworksOptions>({
 });
 
 onMounted(() => {
-    scrollContainer.value?.scrollTo({
-        top: scrollContainer.value.offsetHeight
-    });
-
+    scrollToBottom();
     if (gamesStore.activeGame?.isGameComplete && !gamesStore.activeGame.sawFinishedGame) {
         triggerEndgame();
     } else {
@@ -47,6 +44,12 @@ onUnmounted(() => {
 
 if (getCurrentGameId() && gamesStore.activeGameNotFound) {
     joinGame(getCurrentGameId());
+}
+
+function scrollToBottom() {
+    scrollContainer.value?.scrollTo({
+        top: scrollContainer.value.offsetHeight
+    });
 }
 
 async function refreshGame() {
@@ -97,9 +100,7 @@ async function handleTurnFormSubmit() {
 
     turnInput.value = "";
 
-    scrollContainer.value?.scrollTo({
-        top: scrollContainer.value.offsetHeight
-    });
+    scrollToBottom();
 }
 
 function getFormPrompt() {

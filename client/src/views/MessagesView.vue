@@ -13,10 +13,7 @@ const messageInput = ref("");
 const scrollContainer: Ref<HTMLDivElement | null> = ref(null);
 
 onMounted(() => {
-    scrollContainer.value?.scrollTo({
-        top: scrollContainer.value.offsetHeight
-    });
-
+    scrollToBottom();
     document.addEventListener("visibilitychange", refreshGame);
 });
 
@@ -33,6 +30,12 @@ void (async function () {
 })();
 
 gamesStore.$subscribe(markLastMessageRead);
+
+function scrollToBottom() {
+    scrollContainer.value?.scrollTo({
+        top: scrollContainer.value.offsetHeight
+    });
+}
 
 async function refreshGame() {
     if (gamesStore.activeGame) {
@@ -70,6 +73,7 @@ async function handleMessageFormSubmit() {
     }
 
     messageInput.value = "";
+    scrollToBottom();
 }
 
 function clearMessageInput() {
