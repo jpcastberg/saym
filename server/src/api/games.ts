@@ -9,14 +9,14 @@ import {
     type TurnCreateModel,
     type MessageUpdateModel,
     type MessageCreateModel,
-    TurnModel,
-    GameUpdateModel,
+    type TurnModel,
+    type GameUpdateModel,
 } from "../../../shared/models/GameModels";
 import { type ResponseLocals } from "../models";
 import { sendWebsocketMessage } from "../websocket";
 import { generateTurn } from "../utils/saymbot";
 import sendNotification from "../utils/sendNotification";
-import { PushNotificationModel } from "../../../shared/models/NotificationModels";
+import { type PushNotificationModel } from "../../../shared/models/NotificationModels";
 
 const gamesApi = express.Router();
 
@@ -183,7 +183,14 @@ gamesApi.post(
             updatedGame.playerOneTurns.length ===
             updatedGame.playerTwoTurns.length
         ) {
-            await notifyOtherPlayerOfMove(playerId, updatedGame);
+            const otherPlayerId = getOtherPlayer(playerId, updatedGame)?._id;
+            if (otherPlayerId) {
+                await notifyOtherPlayerOfMove(
+                    playerId,
+                    otherPlayerId,
+                    updatedGame,
+                );
+            }
         }
     },
 );
@@ -222,7 +229,14 @@ gamesApi.post(
         if (gameResponse) {
             res.send(gameResponse);
             sendWebsocketGameUpdate(playerId, gameResponse);
-            await notifyOtherPlayerOfMessage(playerId, gameResponse);
+            const otherPlayerId = getOtherPlayer(playerId, gameResponse)?._id;
+            if (otherPlayerId) {
+                await notifyOtherPlayerOfMessage(
+                    playerId,
+                    otherPlayerId,
+                    gameResponse,
+                );
+            }
         } else {
             res.status(404).send();
         }
@@ -267,23 +281,25 @@ gamesApi.put(
 
 async function notifyOtherPlayerOfMove(
     playerId: string,
+    otherPlayerId: string,
     game: GameResponseModel,
 ) {
     const currentPlayer = getCurrentPlayer(playerId, game);
     const currentPlayerUsername = currentPlayer?.username ?? "Your friend";
     const url = `https://${process.env.SAYM_DOMAIN}/games/${game._id}`;
     const notification: PushNotificationModel = {
-        playerId,
+        playerId: otherPlayerId,
         url,
         title: "It's your move!",
         message: `${currentPlayerUsername} just made a move in your game!`,
     };
 
-    await notifyOtherPlayer(playerId, game, notification);
+    await sendNotification(notification);
 }
 
 async function notifyOtherPlayerOfMessage(
     playerId: string,
+    otherPlayerId: string,
     game: GameResponseModel,
 ) {
     const currentPlayer = getCurrentPlayer(playerId, game);
@@ -312,25 +328,13 @@ async function notifyOtherPlayerOfMessage(
     const currentPlayerUsername = currentPlayer?.username ?? "Your friend";
     const url = `https://${process.env.SAYM_DOMAIN}/games/${game._id}/messages`;
     const notification: PushNotificationModel = {
-        playerId,
+        playerId: otherPlayerId,
         url,
         title: "You got a message!",
         message: `${currentPlayerUsername}: sent you a message - tap here to respond`,
     };
 
-    await notifyOtherPlayer(playerId, game, notification);
-}
-
-async function notifyOtherPlayer(
-    playerId: string,
-    game: GameResponseModel,
-    notification: PushNotificationModel,
-) {
-    const otherPlayer = getOtherPlayer(playerId, game);
-
-    if (otherPlayer) {
-        await sendNotification(notification);
-    }
+    await sendNotification(notification);
 }
 
 async function addTurnToGame(
