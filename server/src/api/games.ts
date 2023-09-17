@@ -178,7 +178,13 @@ gamesApi.post(
         }
 
         res.send(updatedGame);
-        await notifyOtherPlayerOfMove(playerId, updatedGame);
+
+        if (
+            updatedGame.playerOneTurns.length ===
+            updatedGame.playerTwoTurns.length
+        ) {
+            await notifyOtherPlayerOfMove(playerId, updatedGame);
+        }
     },
 );
 
