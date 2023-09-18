@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, type Ref } from "vue";
+import { ref, onMounted, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import scrollInputIntoView from "../utils/scrollInputIntoView";
 import { useGamesStore } from "../stores/games";
@@ -12,7 +12,13 @@ const messageInput = ref("");
 
 const scrollContainer: Ref<HTMLDivElement | null> = ref(null);
 
-onMounted(scrollToBottom);
+onMounted(async () => {
+    if (gamesStore.activeGame?._id) {
+        await gamesStore.refreshGame(gamesStore.activeGame._id);
+    }
+
+    scrollToBottom();
+});
 
 void (async function () {
     if (getCurrentGameId() && !gamesStore.activeGame) {

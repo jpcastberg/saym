@@ -25,7 +25,8 @@ const fireworksOptions = ref<FireworksOptions>({
     }
 });
 
-onMounted(() => {
+onMounted(async () => {
+    await gamesStore.refreshGame(getCurrentGameId());
     scrollToBottom();
     triggerEndgameIfComplete();
     gamesStore.$subscribe(triggerEndgameIfComplete);

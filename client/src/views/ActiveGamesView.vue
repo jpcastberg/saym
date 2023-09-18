@@ -1,9 +1,14 @@
 <script setup lang="ts">
+import { onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useGamesStore } from "../stores/games";
 import InstallPrompt from "../components/InstallPrompt.vue";
 const router = useRouter();
 const gamesStore = useGamesStore();
+
+onMounted(async () => {
+    await gamesStore.initGames();
+});
 
 function handleGameClick(event: MouseEvent | KeyboardEvent, gameId: string | undefined) {
     if (gameId) {

@@ -15,7 +15,7 @@ document.addEventListener("visibilitychange", function () {
 
 function createWebSocketConnection() {
     clearInterval(websocketCheckInterval);
-    websocketCheckInterval = setInterval(ensureWebsocketConnected, 10000);
+    websocketCheckInterval = setInterval(ensureWebsocketConnected, 5000);
     const websocket = new WebSocket(`wss://${location.host}/websocket`);
     websocket.addEventListener("message", handleIncomingWebsocketMessage);
     return websocket;

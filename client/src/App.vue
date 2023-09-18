@@ -7,6 +7,7 @@ import { useAppStore } from "./stores/app";
 import { useGamesStore } from "./stores/games";
 const gamesStore = useGamesStore();
 let initializationComplete = ref(false);
+let activeGamePollInterval: NodeJS.Timer;
 
 void initialize();
 
@@ -14,11 +15,21 @@ async function initialize() {
     await useAppStore().initApp();
     initializationComplete.value = true;
 
-    document.addEventListener("visibilitychange", async () => {
-        if (document.visibilityState === "visible" && gamesStore.activeGame) {
-            await gamesStore.refreshGame(gamesStore.activeGame._id);
+    pollActiveGame();
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+            pollActiveGame();
         }
     });
+}
+
+function pollActiveGame() {
+    clearInterval(activeGamePollInterval);
+    activeGamePollInterval = setInterval(async () => {
+        if (gamesStore.activeGame) {
+            await gamesStore.refreshGame(gamesStore.activeGame._id);
+        }
+    }, 5000);
 }
 </script>
 
