@@ -127,6 +127,7 @@ async function initGames() {
         callback && callback();
     }
 }
+
 async function createGame(): Promise<ComputedGameModel> {
     const gamesStore = useGamesStore();
     const newGame = (await fetch("/api/games", { method: "post" }).then(
@@ -136,6 +137,7 @@ async function createGame(): Promise<ComputedGameModel> {
 
     return gamesStore.currentGames.get(newGame._id)!;
 }
+
 async function joinGame(gameId: string): Promise<ComputedGameModel | null> {
     const gamesStore = useGamesStore();
     const playerStore = usePlayerStore();
@@ -163,6 +165,7 @@ async function joinGame(gameId: string): Promise<ComputedGameModel | null> {
 
     return null;
 }
+
 async function refreshGame(gameId: string) {
     const gamesStore = useGamesStore();
     const refreshedGame = (await fetch(`/api/games/${gameId}`).then(
@@ -171,6 +174,7 @@ async function refreshGame(gameId: string) {
 
     gamesStore.updateGame(computeGameMetadata(refreshedGame));
 }
+
 async function markGameComplete(gameId: string) {
     const gamesStore = useGamesStore();
     const body: GameUpdateModel = {
@@ -186,18 +190,25 @@ async function markGameComplete(gameId: string) {
 
     gamesStore.updateGame(computeGameMetadata(completedGame));
 }
+
 function updateGame(game: ComputedGameModel) {
     const gamesStore = useGamesStore();
-    if (gamesStore.currentGames.has(game._id)) {
-        const matchingGame = gamesStore.currentGames.get(game._id);
-        if (game.isGameComplete) {
-            gamesStore.currentGames.delete(game._id);
-            gamesStore.finishedGames.set(game._id, matchingGame);
-        }
+    let matchingGame;
 
-        Object.assign(matchingGame!, game);
+    if (gamesStore.currentGames.has(game._id)) {
+        matchingGame = gamesStore.currentGames.get(game._id);
+    } else if (gamesStore.finishedGames.has(game._id)) {
+        matchingGame = gamesStore.finishedGames.get(game._id);
+    }
+
+    if (game.isGameComplete && gamesStore.currentGames.has(game._id)) {
+        gamesStore.currentGames.delete(game._id);
+        gamesStore.finishedGames.set(game._id, matchingGame);
+    } else if (matchingGame) {
+        Object.assign(matchingGame, game);
     }
 }
+
 async function createGameWithPlayer(
     playerTwoId: string,
 ): Promise<ComputedGameModel> {
@@ -219,6 +230,7 @@ async function createGameWithPlayer(
 
     return computedNewGame;
 }
+
 async function invitePlayer(gameId: string, inviteBot: boolean) {
     const gamesStore = useGamesStore();
     const playerStore = usePlayerStore();
@@ -239,6 +251,7 @@ async function invitePlayer(gameId: string, inviteBot: boolean) {
         await navigator.clipboard.writeText(shareLink);
     }
 }
+
 async function logGameInvite(gameId: string) {
     const gamesStore = useGamesStore();
     const body: GameUpdateModel = {
@@ -253,6 +266,7 @@ async function logGameInvite(gameId: string) {
     }).then((response) => response.json())) as GameResponseModel;
     gamesStore.updateGame(computeGameMetadata(gameResponse));
 }
+
 async function inviteBot(gameId: string) {
     const gamesStore = useGamesStore();
     const body: GameUpdateModel = {
@@ -267,6 +281,7 @@ async function inviteBot(gameId: string) {
     }).then((response) => response.json())) as GameResponseModel;
     gamesStore.updateGame(computeGameMetadata(gameResponse));
 }
+
 async function submitTurn(gameId: string, text: string) {
     const gamesStore = useGamesStore();
     const gameResponse = (await fetch(`/api/games/${gameId}/turns`, {
@@ -279,6 +294,7 @@ async function submitTurn(gameId: string, text: string) {
 
     gamesStore.updateGame(computeGameMetadata(gameResponse));
 }
+
 async function submitMessage(gameId: string, text: string) {
     const gamesStore = useGamesStore();
     const gameResponse = (await fetch(`/api/games/${gameId}/messages`, {
@@ -291,6 +307,7 @@ async function submitMessage(gameId: string, text: string) {
 
     gamesStore.updateGame(computeGameMetadata(gameResponse));
 }
+
 async function markMessageRead(gameId: string, messageId: string) {
     const gamesStore = useGamesStore();
     const gameResponse = (await fetch(
@@ -306,6 +323,7 @@ async function markMessageRead(gameId: string, messageId: string) {
 
     gamesStore.updateGame(computeGameMetadata(gameResponse));
 }
+
 async function markFinishedGameAsSeen(gameId: string) {
     const gamesStore = useGamesStore();
     const playerStore = usePlayerStore();
