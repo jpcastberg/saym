@@ -201,11 +201,17 @@ function updateGame(game: ComputedGameModel) {
         matchingGame = gamesStore.finishedGames.get(game._id);
     }
 
-    if (game.isGameComplete && gamesStore.currentGames.has(game._id)) {
+    if (matchingGame) {
+        Object.assign(matchingGame, game);
+    }
+
+    if (
+        matchingGame &&
+        game.isGameComplete &&
+        gamesStore.currentGames.has(game._id)
+    ) {
         gamesStore.currentGames.delete(game._id);
         gamesStore.finishedGames.set(game._id, matchingGame);
-    } else if (matchingGame) {
-        Object.assign(matchingGame, game);
     }
 }
 
