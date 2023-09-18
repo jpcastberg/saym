@@ -15,7 +15,7 @@ const randomWordList = fs
     .split("\n");
 
 function getRandomWord() {
-    return randomWordList[getRandomIntInclusive(randomWordList.length)];
+    return randomWordList[getRandomIntInclusive(randomWordList.length - 1)];
 }
 
 export async function generateTurn(game: GameResponseModel): Promise<string> {
@@ -53,7 +53,7 @@ export async function generateTurn(game: GameResponseModel): Promise<string> {
     });
 
     const saymbotGuess =
-        response.data.choices[0].message?.content ?? "Spaghetti"; // 🍝
+        response.data.choices[0].message?.content ?? getRandomWord();
     console.log("saymbotGuess", saymbotGuess);
 
     return saymbotGuess;

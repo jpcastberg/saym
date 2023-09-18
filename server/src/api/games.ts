@@ -467,7 +467,9 @@ function getOtherPlayer(playerId: string, game: GameResponseModel) {
 }
 
 function sanitize(turn: string): string {
-    return turn.replace(/\s+/, " ").replace(/[^0-9a-z\s]/gi, "");
+    return String(turn)
+        .replace(/\s+/, " ")
+        .replace(/[^0-9a-z\s]/gi, "");
 }
 
 function isValidTurn(
