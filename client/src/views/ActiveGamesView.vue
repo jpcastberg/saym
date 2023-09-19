@@ -3,11 +3,15 @@ import { onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useGamesStore, type ComputedGameModel } from "../stores/games";
 import InstallPrompt from "../components/InstallPrompt.vue";
+import logger from "../api/logger";
 const router = useRouter();
 const gamesStore = useGamesStore();
 
 onMounted(async () => {
-    await gamesStore.initGames();
+    await gamesStore.initGames().catch((error) => {
+        console.error(error);
+        logger.error("init_games_error", {});
+    });
 });
 
 function handleGameClick(event: MouseEvent | KeyboardEvent, gameId: string | undefined) {
