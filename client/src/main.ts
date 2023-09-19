@@ -33,6 +33,16 @@ app.use(router);
 
 app.mount("#app");
 
+if (import.meta.env.DEV) {
+    // @ts-expect-error adding properties to support vue devtools on non vue-y browsers
+    window.__VUE_DEVTOOLS_HOST__ = "vue-devtools.castberg.media"; // default: localhost
+    // @ts-expect-error same as above
+    window.__VUE_DEVTOOLS_PORT__ = "443"; // default: 8098
+    const script = document.createElement("script");
+    script.src = "https://vue-devtools.castberg.media:443";
+    document.head.appendChild(script);
+}
+
 registerSW({ immediate: true });
 
 registerSW({
