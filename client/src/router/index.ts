@@ -5,6 +5,7 @@ import GameView from "../views/GameView.vue";
 import MessagesView from "../views/MessagesView.vue";
 import SettingsView from "../views/SettingsView.vue";
 import { ensureWebsocketConnected } from "../api/websocket";
+import logger from "../api/logger";
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -49,6 +50,12 @@ export async function goBack() {
     }
 }
 
-router.afterEach(ensureWebsocketConnected);
+router.afterEach((to, from) => {
+    ensureWebsocketConnected();
+    logger.debug("route_change", {
+        to: to.fullPath,
+        from: from.fullPath,
+    });
+});
 
 export default router;

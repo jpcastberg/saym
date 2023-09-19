@@ -3,22 +3,24 @@ import {
     type AllGamesResponseModel,
     type GameResponseModel,
     type GameUpdateModel,
+    type MessageResponseModel,
     type TurnModel,
+    type TurnResponseModel,
 } from "../../../shared/models/GameModels";
 import {
     botName,
     type PublicPlayerModel,
 } from "../../../shared/models/PlayerModels";
-import { listenForEvent } from "../api/websocket";
+import { listenForWebsocketEvent } from "../api/websocket";
 import router from "../router";
+import logger from "../api/logger";
 import { usePlayerStore } from "./player";
 
 export interface ComputedGameModel extends GameResponseModel {
     otherPlayer: PublicPlayerModel | null;
+    currentPlayerTurns: TurnModel[];
     displayTurns: DisplayTurn[];
     hasPlayerPlayedRound: boolean;
-    uiTitle: string;
-    uiSubtitle: string;
     sawFinishedGame: boolean;
 }
 
@@ -126,6 +128,8 @@ async function initGames() {
         const callback = pendingInitializationCallbacks.shift();
         callback && callback();
     }
+
+    logger.debug("games_initialized", null);
 }
 
 async function createGame(): Promise<ComputedGameModel> {
@@ -135,6 +139,9 @@ async function createGame(): Promise<ComputedGameModel> {
     )) as GameResponseModel;
     gamesStore.currentGames.set(newGame._id, computeGameMetadata(newGame));
 
+    logger.debug("game_created", {
+        gameId: newGame._id,
+    });
     return gamesStore.currentGames.get(newGame._id)!;
 }
 
@@ -160,6 +167,10 @@ async function joinGame(gameId: string): Promise<ComputedGameModel | null> {
             computeGameMetadata(joinedGame),
         );
 
+        logger.debug("joined_game", {
+            gameId: joinedGame._id,
+        });
+
         return gamesStore.currentGames.get(joinedGame._id)!;
     }
 
@@ -172,6 +183,9 @@ async function refreshGame(gameId: string) {
         (response) => response.json(),
     )) as GameResponseModel;
 
+    logger.debug("game_refreshed", {
+        gameId: refreshedGame._id,
+    });
     gamesStore.updateGame(computeGameMetadata(refreshedGame));
 }
 
@@ -188,6 +202,9 @@ async function markGameComplete(gameId: string) {
         },
     }).then((response) => response.json())) as GameResponseModel;
 
+    logger.debug("game_marked_complete", {
+        gameId: completedGame._id,
+    });
     gamesStore.updateGame(computeGameMetadata(completedGame));
 }
 
@@ -202,7 +219,16 @@ function updateGame(game: ComputedGameModel) {
     }
 
     if (matchingGame) {
+        logger.debug(
+            "updateGame called, matching game found, merging in new game",
+            game,
+        );
         Object.assign(matchingGame, game);
+    } else {
+        logger.debug(
+            "updateGame called, matching game NOT found for updated game",
+            game,
+        );
     }
 
     if (
@@ -210,6 +236,7 @@ function updateGame(game: ComputedGameModel) {
         game.isGameComplete &&
         gamesStore.currentGames.has(game._id)
     ) {
+        logger.debug("moving current game to finished", game);
         gamesStore.currentGames.delete(game._id);
         gamesStore.finishedGames.set(game._id, matchingGame);
     }
@@ -233,6 +260,11 @@ async function createGameWithPlayer(
     }).then((response) => response.json())) as GameResponseModel;
     const computedNewGame = computeGameMetadata(newGame);
     gamesStore.currentGames.set(newGame._id, computedNewGame);
+
+    logger.debug("created_new_game_with_player", {
+        gameId: newGame._id,
+        playerTwoId,
+    });
 
     return computedNewGame;
 }
@@ -270,6 +302,10 @@ async function logGameInvite(gameId: string) {
             "content-type": "application/json",
         },
     }).then((response) => response.json())) as GameResponseModel;
+
+    logger.debug("game_invite_logged", {
+        gameId,
+    });
     gamesStore.updateGame(computeGameMetadata(gameResponse));
 }
 
@@ -285,38 +321,51 @@ async function inviteBot(gameId: string) {
             "content-type": "application/json",
         },
     }).then((response) => response.json())) as GameResponseModel;
+
+    logger.debug("bot_invited", {
+        gameId,
+    });
     gamesStore.updateGame(computeGameMetadata(gameResponse));
 }
 
 async function submitTurn(gameId: string, text: string) {
+    text = text.trim();
     const gamesStore = useGamesStore();
-    const gameResponse = (await fetch(`/api/games/${gameId}/turns`, {
+    const turnResponse = (await fetch(`/api/games/${gameId}/turns`, {
         method: "post",
         body: JSON.stringify({ text }),
         headers: {
             "content-type": "application/json",
         },
-    }).then((response) => response.json())) as GameResponseModel;
+    }).then((response) => response.json())) as TurnResponseModel;
 
-    gamesStore.updateGame(computeGameMetadata(gameResponse));
+    logger.debug("turn_submitted", {
+        gameId: turnResponse.game._id,
+        turn: turnResponse.turn,
+    });
+    gamesStore.updateGame(computeGameMetadata(turnResponse.game));
 }
 
 async function submitMessage(gameId: string, text: string) {
+    text = String(text).trim();
     const gamesStore = useGamesStore();
-    const gameResponse = (await fetch(`/api/games/${gameId}/messages`, {
+    const messageResponse = (await fetch(`/api/games/${gameId}/messages`, {
         method: "post",
         body: JSON.stringify({ text }),
         headers: {
             "content-type": "application/json",
         },
-    }).then((response) => response.json())) as GameResponseModel;
-
-    gamesStore.updateGame(computeGameMetadata(gameResponse));
+    }).then((response) => response.json())) as MessageResponseModel;
+    logger.debug("message_submitted", {
+        gameId: messageResponse.game._id,
+        message: messageResponse.message,
+    });
+    gamesStore.updateGame(computeGameMetadata(messageResponse.game));
 }
 
 async function markMessageRead(gameId: string, messageId: string) {
     const gamesStore = useGamesStore();
-    const gameResponse = (await fetch(
+    const messageResponse = (await fetch(
         `/api/games/${gameId}/messages/${messageId}`,
         {
             method: "put",
@@ -325,9 +374,12 @@ async function markMessageRead(gameId: string, messageId: string) {
                 "content-type": "application/json",
             },
         },
-    ).then((response) => response.json())) as GameResponseModel;
-
-    gamesStore.updateGame(computeGameMetadata(gameResponse));
+    ).then((response) => response.json())) as MessageResponseModel;
+    logger.debug("marked_message_as_read", {
+        gameId: messageResponse.game._id,
+        message: messageResponse.message,
+    });
+    gamesStore.updateGame(computeGameMetadata(messageResponse.game));
 }
 
 async function markFinishedGameAsSeen(gameId: string) {
@@ -336,7 +388,7 @@ async function markFinishedGameAsSeen(gameId: string) {
     const game =
         gamesStore.currentGames.get(gameId) ??
         gamesStore.finishedGames.get(gameId);
-    const isPlayerOne = game?.playerOne._id === playerStore.player?._id;
+    const isPlayerOne = playerStore.player?._id === game?.playerOne._id;
     const body: GameUpdateModel = {
         [isPlayerOne ? "playerOneSawFinishedGame" : "playerTwoSawFinishedGame"]:
             true,
@@ -349,13 +401,14 @@ async function markFinishedGameAsSeen(gameId: string) {
                 "content-type": "application/json",
             },
         }).then((response) => response.json())) as GameResponseModel;
-
+        logger.debug("marked_finished_game_as_seen", {
+            gameId: gameResponse._id,
+        });
         gamesStore.updateGame(computeGameMetadata(gameResponse));
     }
 }
 
-listenForEvent("gameUpdate", (updatedGame) => {
-    console.log("RECEIVED GAME UPDATE:", updatedGame);
+listenForWebsocketEvent("gameUpdate", (updatedGame) => {
     const gamesStore = useGamesStore();
     gamesStore.updateGame(computeGameMetadata(updatedGame));
 });
@@ -424,41 +477,14 @@ function computeGameMetadata(game: GameResponseModel): ComputedGameModel {
         },
     );
 
-    let uiTitle: string;
-    let uiSubtitle = "";
-
-    if (otherPlayer) {
-        uiTitle = `Game with ${otherPlayer.username ?? "your friend"}`;
-        if (game.isGameComplete) {
-            const lastWord = currentPlayerTurns[currentPlayerTurns.length - 1];
-            uiSubtitle = `Saym! You both guessed ${lastWord.text}.`;
-        } else if (hasPlayerPlayedRound) {
-            uiSubtitle = `Waiting for ${
-                otherPlayer.username ?? "your friend"
-            } to go`;
-        } else {
-            uiSubtitle = "Ready for your word!";
-        }
-    } else {
-        uiTitle = "Pending Game";
-        if (game.needToInvitePlayer) {
-            uiSubtitle = "Invite someone to play!";
-        } else if (!hasPlayerPlayedRound) {
-            uiSubtitle = "Submit your first word while waiting";
-        } else {
-            uiSubtitle = "Waiting for other player to join...";
-        }
-    }
-
     const sawFinishedGame = isPlayerOne
         ? game.playerOneSawFinishedGame
         : game.playerTwoSawFinishedGame;
 
     const computedGame = {
         ...game,
-        uiTitle,
-        uiSubtitle,
         otherPlayer,
+        currentPlayerTurns,
         displayTurns,
         hasPlayerPlayedRound,
         sawFinishedGame,

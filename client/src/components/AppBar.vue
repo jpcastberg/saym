@@ -177,8 +177,6 @@ function lastMessageIsUnread() {
         const lastReceivedMessage =
             currentGame.messages.findLast(message => message.playerId !== playerId);
 
-        console.log("last received message:", lastReceivedMessage);
-
         return Boolean(lastReceivedMessage && !lastReceivedMessage.readByOtherPlayer);
     }
 

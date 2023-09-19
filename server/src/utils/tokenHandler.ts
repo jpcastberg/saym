@@ -6,6 +6,7 @@ import tokensDbApi, { type TokenModel } from "../database/token";
 import playersDbApi from "../database/players";
 import { type PlayerModel } from "../../../shared/models/PlayerModels";
 import { ResponseLocals } from "../models";
+import { serverLogger } from "./logger";
 
 async function tokenHandler(
     req: Request,
@@ -62,7 +63,7 @@ async function createNewToken() {
     const newAccessToken = createToken();
 
     await tokensDbApi.create({ playerId, tokenValue: newAccessToken });
-    console.log(
+    serverLogger.debug(
         `set new access token: ${newAccessToken}, for player: ${playerId}`,
     );
 

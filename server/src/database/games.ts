@@ -91,8 +91,8 @@ class GamesDbApi {
         playerId: string;
         gameId: string;
         playerTwoId?: string;
-        playerOneTurn?: string;
-        playerTwoTurn?: string;
+        playerOneTurn?: TurnModel;
+        playerTwoTurn?: TurnModel;
         needToInvitePlayer?: boolean;
         isGameComplete?: boolean;
         playerOneSawFinishedGame?: boolean;
@@ -131,24 +131,13 @@ class GamesDbApi {
             };
         }
 
-        const timestamp = new Date().toISOString();
-        const _id = generateId();
-
         if (playerOneTurn) {
             gameUpdates.$push = {
-                playerOneTurns: {
-                    _id,
-                    text: playerOneTurn,
-                    timestamp,
-                },
+                playerOneTurns: playerOneTurn,
             };
         } else if (playerTwoTurn) {
             gameUpdates.$push = {
-                playerTwoTurns: {
-                    _id,
-                    text: playerTwoTurn,
-                    timestamp,
-                },
+                playerTwoTurns: playerTwoTurn,
             };
         }
 
@@ -174,25 +163,17 @@ class GamesDbApi {
     async createMessage({
         playerId,
         gameId,
-        text,
+        message,
     }: {
         playerId: string;
         gameId: string;
-        text: string;
+        message: MessageModel;
     }) {
         const db = await dbConnect();
         const games = db.collection<GameDbModel>("games");
-
-        const newMessage: MessageModel = {
-            _id: generateId(),
-            playerId,
-            text: text.trim(),
-            readByOtherPlayer: false,
-            timestamp: new Date().toISOString(),
-        };
         const updatedThread: UpdateFilter<GameDbModel> = {
             $push: {
-                messages: newMessage,
+                messages: message,
             },
         };
         const filter: Filter<GameDbModel> = {

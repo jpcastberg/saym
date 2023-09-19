@@ -2,10 +2,16 @@ import {
     type GameWebsocketUpdateModel,
     type GameResponseModel,
 } from "../../../shared/models/GameModels";
+import logger from "./logger";
 
 let websocketCheckInterval: NodeJS.Timer;
-let websocket = createWebSocketConnection();
-const eventNames = new Set<string>(["gameUpdate"]); // todo: proper enum
+let pingPongInterval: NodeJS.Timer;
+let websocket: WebSocket;
+type EventCallback = (event: GameResponseModel) => void;
+type EventListeners = Record<string, EventCallback[]>;
+export const eventNames = new Set<string>(["gameUpdate"]); // todo: proper enum
+
+createWebSocketConnection();
 
 document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "visible") {
@@ -16,13 +22,10 @@ document.addEventListener("visibilitychange", function () {
 function createWebSocketConnection() {
     clearInterval(websocketCheckInterval);
     websocketCheckInterval = setInterval(ensureWebsocketConnected, 5000);
-    const websocket = new WebSocket(`wss://${location.host}/websocket`);
+    websocket = new WebSocket(`wss://${location.host}/websocket`);
     websocket.addEventListener("message", handleIncomingWebsocketMessage);
-    return websocket;
+    websocket.addEventListener("open", initPingPong);
 }
-
-type EventCallback = (event: GameResponseModel) => void;
-type EventListeners = Record<string, EventCallback[]>;
 
 const eventListeners: EventListeners = [...eventNames.values()].reduce(
     (acc: EventListeners, eventName) => {
@@ -45,6 +48,8 @@ function handleIncomingWebsocketMessage(event: MessageEvent) {
         message,
     ) as GameWebsocketUpdateModel;
 
+    logger.debug("client_websocket_message_received", parsedEvent);
+
     if (eventNames.has(parsedEvent.eventType)) {
         for (const eventListener of eventListeners[parsedEvent.eventType]) {
             eventListener(parsedEvent.data);
@@ -52,35 +57,30 @@ function handleIncomingWebsocketMessage(event: MessageEvent) {
     }
 }
 
-export { eventNames };
-
-export function listenForEvent(eventName: string, callback: EventCallback) {
+export function listenForWebsocketEvent(
+    eventName: string,
+    callback: EventCallback,
+) {
     if (eventNames.has(eventName)) {
         eventListeners[eventName].push(callback);
     }
 }
 
 export function ensureWebsocketConnected() {
-    console.log("socket.readyState:", getSocketReadyState());
-    if (websocket.readyState === WebSocket.OPEN) {
-        websocket.send("ping");
-    } else if (websocket.readyState !== WebSocket.CONNECTING) {
-        console.log("recreating websocket connection");
-        websocket = createWebSocketConnection();
+    if (
+        websocket.readyState !== WebSocket.OPEN &&
+        websocket.readyState !== WebSocket.CONNECTING
+    ) {
+        logger.debug("recreating_websocket_connection", null);
+        createWebSocketConnection();
     }
 }
 
-function getSocketReadyState() {
-    switch (websocket.readyState) {
-        case WebSocket.OPEN:
-            return "OPEN";
-        case WebSocket.CONNECTING:
-            return "CONNECTING";
-        case WebSocket.CLOSING:
-            return "CLOSING";
-        case WebSocket.CLOSED:
-            return "CLOSED";
-        default:
-            return null;
-    }
+function initPingPong() {
+    logger.debug("websocket_connection_open", null);
+    clearInterval(pingPongInterval);
+    websocket.send("ping");
+    pingPongInterval = setInterval(() => {
+        websocket.send("ping");
+    }, 30000);
 }

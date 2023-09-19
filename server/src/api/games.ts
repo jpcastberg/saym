@@ -11,12 +11,16 @@ import {
     type MessageCreateModel,
     type TurnModel,
     type GameUpdateModel,
+    type TurnResponseModel,
+    type MessageModel,
+    type MessageResponseModel,
 } from "../../../shared/models/GameModels";
 import { type ResponseLocals } from "../models";
 import { sendWebsocketMessage } from "../websocket";
-import { generateTurn } from "../utils/saymbot";
+import { generateTurnText } from "../utils/saymbot";
 import sendNotification from "../utils/sendNotification";
 import { type PushNotificationModel } from "../../../shared/models/NotificationModels";
+import generateId from "../utils/idGenerator";
 
 const gamesApi = express.Router();
 
@@ -164,10 +168,10 @@ gamesApi.post(
     async (
         req: Request<
             Record<string, string>,
-            GameResponseModel,
+            TurnResponseModel,
             TurnCreateModel
         >,
-        res: Response<GameResponseModel, ResponseLocals>,
+        res: Response<TurnResponseModel, ResponseLocals>,
     ) => {
         const {
             params: { gameId },
@@ -177,7 +181,8 @@ gamesApi.post(
             locals: { playerId },
         } = res;
 
-        const updatedGame = await addTurnToGame(text, playerId, gameId);
+        const turn = createTurn(text);
+        const updatedGame = await addTurnToGame(turn, playerId, gameId);
         if (
             !updatedGame.isGameComplete &&
             updatedGame.playerTwo?._id === botName
@@ -185,7 +190,10 @@ gamesApi.post(
             scheduleBotTurn(updatedGame);
         }
 
-        res.send(updatedGame);
+        res.send({
+            turn,
+            game: updatedGame,
+        });
 
         if (
             updatedGame.playerOneTurns.length ===
@@ -208,10 +216,10 @@ gamesApi.post(
     async (
         req: Request<
             Record<string, string>,
-            GameResponseModel,
+            MessageResponseModel,
             MessageCreateModel
         >,
-        res: Response<GameResponseModel, ResponseLocals>,
+        res: Response<MessageResponseModel, ResponseLocals>,
     ) => {
         const {
             params: { gameId },
@@ -228,22 +236,27 @@ gamesApi.post(
             return;
         }
 
-        const gameResponse = await gamesDbApi.createMessage({
+        const message = createMessage(playerId, text);
+
+        if (!message.text || message.text.length > 250) {
+            res.status(400).send();
+        }
+
+        const game = await gamesDbApi.createMessage({
             playerId,
             gameId,
-            text,
+            message,
         });
 
-        if (gameResponse) {
-            res.send(gameResponse);
-            sendWebsocketGameUpdate(playerId, gameResponse);
-            const otherPlayerId = getOtherPlayer(playerId, gameResponse)?._id;
+        if (game) {
+            res.send({
+                message,
+                game,
+            });
+            sendWebsocketGameUpdate(playerId, game);
+            const otherPlayerId = getOtherPlayer(playerId, game)?._id;
             if (otherPlayerId) {
-                await notifyOtherPlayerOfMessage(
-                    playerId,
-                    otherPlayerId,
-                    gameResponse,
-                );
+                await notifyOtherPlayerOfMessage(playerId, otherPlayerId, game);
             }
         } else {
             res.status(404).send();
@@ -256,10 +269,10 @@ gamesApi.put(
     async (
         req: Request<
             Record<string, string>,
-            GameResponseModel,
+            MessageResponseModel,
             MessageUpdateModel
         >,
-        res: Response<GameResponseModel, ResponseLocals>,
+        res: Response<MessageResponseModel, ResponseLocals>,
     ) => {
         const {
             params: { gameId, messageId },
@@ -271,16 +284,23 @@ gamesApi.put(
             body: { readByOtherPlayer },
         } = req;
 
-        const updatedGame = await gamesDbApi.updateMessage({
+        const game = await gamesDbApi.updateMessage({
             playerId,
             gameId,
             messageId,
             readByOtherPlayer,
         });
 
-        if (updatedGame) {
-            res.send(updatedGame);
-            sendWebsocketGameUpdate(playerId, updatedGame);
+        const message = game?.messages.find(
+            (message) => message._id === messageId,
+        );
+
+        if (game && message) {
+            res.send({
+                message,
+                game,
+            });
+            sendWebsocketGameUpdate(playerId, game);
         } else {
             res.status(404).send();
         }
@@ -367,19 +387,36 @@ async function notifyOtherPlayerOfMessage(
     await sendNotification(notification);
 }
 
+function createTurn(text: string): TurnModel {
+    return {
+        _id: generateId(),
+        text: sanitize(text),
+        timestamp: new Date().toISOString(),
+    };
+}
+
+function createMessage(playerId: string, text: string): MessageModel {
+    return {
+        _id: generateId(),
+        playerId,
+        text: String(text).trim(),
+        readByOtherPlayer: false,
+        timestamp: new Date().toISOString(),
+    };
+}
+
 async function addTurnToGame(
-    turn: string,
+    turn: TurnModel,
     playerId: string,
     gameId: string,
 ): Promise<GameResponseModel> {
     return new Promise(async (resolve, reject) => {
         const currentGame = await gamesDbApi.get({ playerId, gameId });
-        const sanitizedTurn = sanitize(turn);
 
         if (!currentGame) {
             reject(404);
             return;
-        } else if (!sanitizedTurn || currentGame.isGameComplete) {
+        } else if (!turn.text || currentGame.isGameComplete) {
             reject(400);
             return;
         }
@@ -393,29 +430,23 @@ async function addTurnToGame(
             otherPlayerTurns,
         ] = isPlayerOne(playerId, currentGame)
             ? [
-                  sanitizedTurn,
+                  turn,
                   undefined,
                   currentGame.playerOneTurns,
                   currentGame.playerTwoTurns,
               ]
             : [
                   undefined,
-                  sanitizedTurn,
+                  turn,
                   currentGame.playerTwoTurns,
                   currentGame.playerOneTurns,
               ];
 
-        if (
-            sanitizedTurn &&
-            !isValidTurn(sanitizedTurn, currentPlayerTurns, otherPlayerTurns)
-        ) {
+        if (!isValidTurn(turn, currentPlayerTurns, otherPlayerTurns)) {
             reject(400);
         }
 
-        if (
-            sanitizedTurn &&
-            isWinningTurn(sanitizedTurn, currentPlayerTurns, otherPlayerTurns)
-        ) {
+        if (isWinningTurn(turn, currentPlayerTurns, otherPlayerTurns)) {
             isGameComplete = true;
         }
 
@@ -473,27 +504,27 @@ function sanitize(turn: string): string {
 }
 
 function isValidTurn(
-    turn: string,
+    turn: TurnModel,
     currentPlayerTurns: TurnModel[],
     otherPlayerTurns: TurnModel[],
 ): boolean {
     const maxTurnLength = 25;
     return (
         Boolean(turn) &&
-        turn.length < maxTurnLength &&
+        turn.text.length < maxTurnLength &&
         (currentPlayerTurns.length === otherPlayerTurns.length ||
             currentPlayerTurns.length === otherPlayerTurns.length - 1)
     );
 }
 
 function isWinningTurn(
-    turn: string,
+    turn: TurnModel,
     currentPlayerTurns: TurnModel[],
     otherPlayerTurns: TurnModel[],
 ): boolean {
     return (
         currentPlayerTurns.length === otherPlayerTurns.length - 1 &&
-        turn.trim().toLowerCase() ===
+        turn.text.trim().toLowerCase() ===
             otherPlayerTurns[otherPlayerTurns.length - 1].text
                 .trim()
                 .toLowerCase()
@@ -502,9 +533,10 @@ function isWinningTurn(
 
 function scheduleBotTurn(game: GameResponseModel) {
     setTimeout(async () => {
-        const botTurn = await generateTurn(game);
+        const botTurnText = await generateTurnText(game);
+        const botTurn = createTurn(botTurnText);
         void addTurnToGame(botTurn, botName, game._id);
-    }, 2000);
+    }, 1000);
 }
 
 export default gamesApi;

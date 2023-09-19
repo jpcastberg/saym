@@ -170,7 +170,7 @@ async function turnOffPushNotifications() {
             "content-type": "application/json",
         },
         body: JSON.stringify(pushSubscriptionUpdateBody),
-    }).then((response) => response.json());
+    });
 
     await usePlayerStore().initPlayer();
 }

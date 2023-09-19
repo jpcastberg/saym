@@ -3,6 +3,7 @@ import path from "path";
 import { Configuration, OpenAIApi } from "openai";
 import { type GameResponseModel } from "../../../shared/models/GameModels";
 import getRandomIntInclusive from "./getRandomIntInclusive";
+import { serverLogger } from "./logger";
 const configuration = new Configuration({
     apiKey: process.env.OPENAI_API_KEY,
 });
@@ -18,7 +19,9 @@ function getRandomWord() {
     return randomWordList[getRandomIntInclusive(randomWordList.length - 1)];
 }
 
-export async function generateTurn(game: GameResponseModel): Promise<string> {
+export async function generateTurnText(
+    game: GameResponseModel,
+): Promise<string> {
     if (!game.playerTwoTurns.length) {
         return getRandomWord();
     }
@@ -30,8 +33,6 @@ export async function generateTurn(game: GameResponseModel): Promise<string> {
 
         return acc;
     }, "");
-
-    console.log("passing word list to bot:", wordList);
 
     const response = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
@@ -54,7 +55,10 @@ export async function generateTurn(game: GameResponseModel): Promise<string> {
 
     const saymbotGuess =
         response.data.choices[0].message?.content ?? getRandomWord();
-    console.log("saymbotGuess", saymbotGuess);
+    serverLogger.debug("saymbot_move", {
+        move: saymbotGuess,
+        game,
+    });
 
     return saymbotGuess;
 }

@@ -2,6 +2,7 @@ import ws, { type MessageEvent } from "ws";
 import cookie from "cookie";
 import playersDbApi from "./database/players";
 import tokensDbApi, { type TokenModel } from "./database/token";
+import { serverLogger } from "./utils/logger";
 
 interface PlayerSocket {
     playerId: string;
@@ -43,7 +44,10 @@ wsServer.on("connection", async (socket, req) => {
     initPingPong(newPlayerSocket);
 
     socket.on("close", () => {
-        console.log("connection closed, removing", existingPlayer._id);
+        serverLogger.debug("websocket_connection_closed", {
+            playerId: existingPlayer._id,
+            username: existingPlayer.username,
+        });
         removeConnection(existingPlayer._id, newPlayerSocket);
     });
 });
@@ -61,6 +65,11 @@ function sendWebsocketMessage(playerId: string, message: string) {
     for (const playerSocket of playerSockets) {
         playerSocket.socket.send(message);
     }
+
+    serverLogger.debug("websocket_message_sent", {
+        playerId,
+        message,
+    });
 }
 
 function getOrCreatePlayerSocketsList(playerId: string) {
@@ -79,10 +88,7 @@ function initPingPong(playerSocket: PlayerSocket) {
 
     socket.on("message", (binaryMessage: MessageEvent) => {
         if (!isActiveSocket(playerSocket)) {
-            console.log(
-                "received message from allegedly inactive socket",
-                playerSocket,
-            );
+            serverLogger.warn("message_from_inactive_websocket", playerSocket);
         }
 
         playerSocket.lastUpdate = new Date();
@@ -90,14 +96,8 @@ function initPingPong(playerSocket: PlayerSocket) {
 
         if (message === "ping") {
             socket.send("pong");
-        } else if (message === "pong") {
-            setTimeout(() => {
-                socket.send("ping");
-            }, 30000);
         }
     });
-
-    socket.send("ping");
 }
 
 function isActiveSocket(playerSocket: PlayerSocket) {
@@ -119,7 +119,9 @@ function cleanupConnections() {
         }
 
         for (const staleConnection of staleConnections) {
-            console.log("removing stale connection from player:", playerId);
+            serverLogger.debug("stale_websocket_removal", {
+                playerId,
+            });
             removeConnection(playerId, staleConnection);
         }
     }

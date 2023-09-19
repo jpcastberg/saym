@@ -31,6 +31,11 @@ export interface AllGamesResponseModel {
     finishedGames: GameResponseModel[];
 }
 
+export interface TurnResponseModel {
+    turn: TurnModel;
+    game: GameResponseModel;
+}
+
 export interface TurnModel {
     _id: string;
     text: string;
@@ -39,6 +44,11 @@ export interface TurnModel {
 
 export interface TurnCreateModel {
     text: string;
+}
+
+export interface MessageResponseModel {
+    message: MessageModel;
+    game: GameResponseModel;
 }
 
 export interface MessageModel {
