@@ -67,6 +67,14 @@ export const useGamesStore = defineStore("games", {
             };
         },
         activeGame(): ComputedGameModel | undefined {
+            return this.getGameById(this.currentGameId);
+        },
+        activeGameNotFound(): boolean {
+            return (
+                router.currentRoute.value.name === "games" && !this.activeGame
+            );
+        },
+        currentGameId() {
             const {
                 currentRoute: {
                     value: {
@@ -74,13 +82,7 @@ export const useGamesStore = defineStore("games", {
                     },
                 },
             } = router;
-
-            return this.getGameById(gameId as string);
-        },
-        activeGameNotFound(): boolean {
-            return (
-                router.currentRoute.value.name === "games" && !this.activeGame
-            );
+            return gameId as string;
         },
     },
     actions: {

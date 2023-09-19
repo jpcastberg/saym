@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, type Ref } from "vue";
-import { useRouter } from "vue-router";
 import scrollInputIntoView from "../utils/scrollInputIntoView";
 import { useGamesStore } from "../stores/games";
 import { type MessageModel } from "../../../shared/models/GameModels";
 import { usePlayerStore } from "../stores/player";
-const router = useRouter();
 const playerStore = usePlayerStore();
 const gamesStore = useGamesStore();
 const messageInput = ref("");
@@ -13,7 +11,7 @@ const messageInput = ref("");
 const scrollContainer: Ref<HTMLDivElement | null> = ref(null);
 
 onMounted(async () => {
-    if (gamesStore.activeGame?._id) {
+    if (gamesStore.activeGame) {
         await gamesStore.refreshGame(gamesStore.activeGame._id);
     }
 
@@ -21,8 +19,8 @@ onMounted(async () => {
 });
 
 void (async function () {
-    if (getCurrentGameId() && !gamesStore.activeGame) {
-        await joinGame(getCurrentGameId());
+    if (gamesStore.currentGameId && !gamesStore.activeGame) {
+        await joinGame(gamesStore.currentGameId);
     }
 
     await markLastMessageRead();
@@ -48,11 +46,6 @@ async function markLastMessageRead() {
     }
 }
 
-function getCurrentGameId() {
-    const { "currentRoute": { "value": { "params": { gameId } } } } = router;
-    return gameId as string;
-}
-
 async function joinGame(gameId: string) {
     const joinedGame = await gamesStore.joinGame(gameId);
     if (joinedGame) {
@@ -62,7 +55,7 @@ async function joinGame(gameId: string) {
 
 async function handleMessageFormSubmit() {
     if (gamesStore.activeGame && messageInput.value.trim() !== "") {
-        await gamesStore.submitMessage(getCurrentGameId(), messageInput.value);
+        await gamesStore.submitMessage(gamesStore.activeGame._id, messageInput.value);
     }
 
     messageInput.value = "";

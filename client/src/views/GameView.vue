@@ -26,7 +26,9 @@ const fireworksOptions = ref<FireworksOptions>({
 });
 
 onMounted(async () => {
-    await gamesStore.refreshGame(getCurrentGameId());
+    if (gamesStore.activeGame) {
+        await gamesStore.refreshGame(gamesStore.activeGame._id);
+    }
     scrollToBottom();
     triggerEndgameIfComplete();
     gamesStore.$subscribe(triggerEndgameIfComplete);
@@ -37,8 +39,8 @@ onUnmounted(() => {
     document.removeEventListener("visibilitychange", triggerEndgameIfComplete);
 });
 
-if (getCurrentGameId() && gamesStore.activeGameNotFound) {
-    joinGame(getCurrentGameId());
+if (gamesStore.currentGameId && gamesStore.activeGameNotFound) {
+    joinGame(gamesStore.currentGameId);
 }
 
 function scrollToBottom() {
@@ -70,11 +72,6 @@ async function triggerFireworks() {
     await new Promise((resolve) => setTimeout(resolve, 3000));
     await fireworksElement.value?.waitStop();
     shouldRenderFireworks.value = false;
-}
-
-function getCurrentGameId() {
-    const { "currentRoute": { "value": { "params": { gameId } } } } = router;
-    return gameId as string;
 }
 
 function joinGame(gameId: string) {
@@ -115,7 +112,6 @@ function clearTurnInput() {
 async function continuePlayingWithOtherPlayer() {
     if (gamesStore.activeGame?.otherPlayer?._id) {
         const newGame = await gamesStore.createGameWithPlayer(gamesStore.activeGame.otherPlayer._id);
-        // todo: when the path changes, reload the game
         await router.push(`/games/${newGame._id}`);
     }
 }
