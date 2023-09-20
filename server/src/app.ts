@@ -21,6 +21,12 @@ app.use("/api/logs", logsApi);
 app.use(express.static(path.resolve(__dirname, "../../client/dist")));
 app.use(handleError);
 
+app.get("/api/healthcheck", (req, res) => {
+    res.json({
+        healthy: true,
+    });
+});
+
 app.get("/**", (req, res) => {
     res.sendFile(path.resolve(__dirname, "../../client/dist/index.html"));
 });
