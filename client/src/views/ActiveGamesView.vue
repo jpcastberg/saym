@@ -7,12 +7,15 @@ import logger from "../api/logger";
 const router = useRouter();
 const gamesStore = useGamesStore();
 
-onMounted(async () => {
+onMounted(initGames);
+document.addEventListener("visibilitychange", initGames);
+
+async function initGames() {
     await gamesStore.initGames().catch((error) => {
         console.error(error);
         logger.error("init_games_error", {});
     });
-});
+}
 
 function handleGameClick(event: MouseEvent | KeyboardEvent, gameId: string | undefined) {
     if (gameId) {
