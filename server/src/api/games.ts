@@ -21,6 +21,7 @@ import { generateTurnText } from "../utils/saymbot";
 import sendNotification from "../utils/sendNotification";
 import { type PushNotificationModel } from "../../../shared/models/NotificationModels";
 import generateId from "../utils/idGenerator";
+import { serverLogger } from "../utils/logger";
 
 const gamesApi = express.Router();
 
@@ -195,18 +196,17 @@ gamesApi.post(
             game: updatedGame,
         });
 
-        if (
+        const otherPlayerId = getOtherPlayer(playerId, updatedGame)?._id;
+        const areTurnsEqualLength =
             updatedGame.playerOneTurns.length ===
-            updatedGame.playerTwoTurns.length
-        ) {
-            const otherPlayerId = getOtherPlayer(playerId, updatedGame)?._id;
-            if (otherPlayerId) {
-                await notifyOtherPlayerOfMove(
-                    playerId,
-                    otherPlayerId,
-                    updatedGame,
-                );
-            }
+            updatedGame.playerTwoTurns.length;
+        serverLogger.debug("deciding_whether_to_send_turn_notification", {
+            otherPlayerId,
+            areTurnsEqualLength,
+        });
+
+        if (areTurnsEqualLength && otherPlayerId) {
+            await notifyOtherPlayerOfMove(playerId, otherPlayerId, updatedGame);
         }
     },
 );
@@ -371,6 +371,10 @@ async function notifyOtherPlayerOfMessage(
         const sentTime = new Date(secondToLastMessage.timestamp).getTime();
 
         if (sentTime < twoMinutesAgo) {
+            serverLogger.debug("suppressing_message_notification", {
+                timeSinceLastMessageNotificationMs:
+                    new Date().getTime() - sentTime,
+            });
             return;
         }
     }
