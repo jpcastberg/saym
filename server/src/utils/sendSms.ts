@@ -10,11 +10,17 @@ const client = twilio(accountSid, authToken);
 
 async function sendSms(to: string, body: string) {
     serverLogger.debug("sending sms to:", to, "from:", from, "body:", body);
-    await client.messages.create({
-        body,
-        to,
-        messagingServiceSid,
-    });
+    await client.messages
+        .create({
+            body,
+            to,
+            messagingServiceSid,
+        })
+        .catch((error) => {
+            serverLogger.error("send_sms_failed", {
+                error: String(error),
+            });
+        });
 }
 
 export default sendSms;
