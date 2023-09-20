@@ -8,7 +8,6 @@ const router = useRouter();
 const gamesStore = useGamesStore();
 
 onMounted(initGames);
-document.addEventListener("visibilitychange", initGames);
 
 async function initGames() {
     await gamesStore.initGames().catch((error) => {
