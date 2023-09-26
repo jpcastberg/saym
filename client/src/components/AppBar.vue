@@ -150,9 +150,7 @@ async function handleBackButtonPress() {
 function shouldShowMarkGameComplete() {
     const currentGame = getCurrentGame();
     return router.currentRoute.value.name === "games" &&
-        currentGame &&
-        currentGame.playerOneTurns.length > 0 &&
-        currentGame.playerTwoTurns.length > 0;
+        currentGame;
 }
 
 function shouldShowMessagesIcon() {
