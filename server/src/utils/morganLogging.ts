@@ -29,7 +29,13 @@ export default morgan(
         stream: {
             write: (message) => {
                 process.stdout.write(colorize(message));
-                apiRequestLogger.debug("api_request", JSON.parse(message));
+                const parsedMessage = JSON.parse(message) as ApiLogFormat;
+
+                if (parsedMessage.url === "/api/healthcheck") {
+                    return;
+                }
+
+                apiRequestLogger.debug("api_request", parsedMessage);
             },
         },
     },
