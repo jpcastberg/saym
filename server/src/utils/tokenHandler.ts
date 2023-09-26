@@ -13,6 +13,11 @@ async function tokenHandler(
     res: Response<Record<string, never>, ResponseLocals>,
     next: NextFunction,
 ) {
+    if (req.path === "/api/healthcheck") {
+        next();
+        return;
+    }
+
     const providedToken = cookie.parse(req.headers.cookie ?? "").token;
     let existingToken: TokenModel | null = null;
 
