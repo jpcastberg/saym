@@ -284,8 +284,7 @@ async function invitePlayer(gameId: string, inviteBot: boolean) {
     if (isNativeSharingAvailable) {
         await navigator.share({
             title: "Come play Saym!",
-            text: `${playerStore.player?.username} is inviting you to play Saym with them. Follow this link to join:`,
-            url: shareLink,
+            text: `${playerStore.player?.username} is inviting you to play Saym with them. Follow this link to join: ${shareLink}`,
         });
     } else {
         await navigator.clipboard.writeText(shareLink);
