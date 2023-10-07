@@ -17,6 +17,14 @@ class TokensDbApi {
         });
     }
 
+    async getByPlayerId({ playerId }: { playerId: string }) {
+        const db = await dbConnect();
+        const tokens = db.collection<TokenModel>("tokens");
+        return await tokens.findOne({
+            playerId,
+        });
+    }
+
     async create({
         playerId,
         tokenValue,

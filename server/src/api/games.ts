@@ -22,6 +22,7 @@ import sendNotification from "../utils/sendNotification";
 import { type PushNotificationModel } from "../../../shared/models/NotificationModels";
 import generateId from "../utils/idGenerator";
 import { serverLogger } from "../utils/logger";
+import tokensDbApi from "../database/token";
 
 const gamesApi = express.Router();
 
@@ -315,8 +316,10 @@ async function notifyOtherPlayerOfNewGame(
     const currentPlayer = getCurrentPlayer(playerId, game);
     const currentPlayerUsername = currentPlayer?.username ?? "Your friend";
     const url = `https://${process.env.SAYM_DOMAIN}/games/${game._id}`;
+    const token = await tokensDbApi.getByPlayerId({ playerId: otherPlayerId });
     const notification: PushNotificationModel = {
         playerId: otherPlayerId,
+        token: token?.value ?? null,
         url,
         title: "Join The Saym Game!",
         message: `${currentPlayerUsername} just started a new game with you. Tap here to join.`,
@@ -337,8 +340,10 @@ async function notifyOtherPlayerOfMove(
     const message = game.isGameComplete
         ? `You and ${currentPlayerUsername} said the saym word!`
         : `${currentPlayerUsername} just made a move in your game!`;
+    const token = await tokensDbApi.getByPlayerId({ playerId: otherPlayerId });
     const notification: PushNotificationModel = {
         playerId: otherPlayerId,
+        token: token?.value ?? null,
         url,
         title,
         message,
@@ -381,8 +386,10 @@ async function notifyOtherPlayerOfMessage(
 
     const currentPlayerUsername = currentPlayer?.username ?? "Your friend";
     const url = `https://${process.env.SAYM_DOMAIN}/games/${game._id}/messages`;
+    const token = await tokensDbApi.getByPlayerId({ playerId: otherPlayerId });
     const notification: PushNotificationModel = {
         playerId: otherPlayerId,
+        token: token?.value ?? null,
         url,
         title: "You got a message!",
         message: `${currentPlayerUsername}: sent you a message - tap here to respond`,

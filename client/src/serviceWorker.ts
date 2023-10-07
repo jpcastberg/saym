@@ -79,8 +79,16 @@ self.addEventListener("notificationclick", (event) => {
             includeUncontrolled: true,
         })
         .then((windowClients) => {
+            const builtUrl = new URL(url ?? "/", self.location.origin);
+            builtUrl.pathname = builtUrl.pathname.replace(/\/+$/, "");
+
             for (const client of windowClients) {
-                if (url && client.url === url) {
+                const builtClientUrl = new URL(client.url);
+                builtClientUrl.pathname = builtClientUrl.pathname.replace(
+                    /\/+$/,
+                    "",
+                );
+                if (builtUrl.pathname === builtClientUrl.pathname) {
                     logger.debug(
                         "existing_window_opened_from_notification",
                         pushNotification,
@@ -91,32 +99,23 @@ self.addEventListener("notificationclick", (event) => {
 
             if (windowClients[0]) {
                 // most recently focused window
-                if (url) {
-                    logger.debug(
-                        "existing_window_navigated_to_notification_url",
-                        pushNotification,
-                    );
-                    return windowClients[0].navigate(url);
-                } else {
-                    logger.debug(
-                        "existing_window_focused_from_notification",
-                        pushNotification,
-                    );
-                    return windowClients[0].focus();
-                }
-            } else if (url) {
                 logger.debug(
-                    "new_window_opened_from_notification",
+                    "existing_window_navigated_to_notification_url",
                     pushNotification,
                 );
-                return self.clients.openWindow(url);
+                return windowClients[0].navigate(builtUrl);
             }
 
             logger.debug(
-                "root_window_focused_from_notification",
+                "new_window_opened_from_notification",
                 pushNotification,
             );
-            return self.clients.openWindow("/");
+
+            if (pushNotification.token) {
+                builtUrl.search = `token=${pushNotification.token}`;
+            }
+
+            return self.clients.openWindow(builtUrl);
         });
 
     event.waitUntil(promiseChain);

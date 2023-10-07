@@ -80,7 +80,7 @@ playersApi.post(
         res: Response<PushSubscriptionModel, ResponseLocals>,
     ) => {
         const {
-            locals: { playerId },
+            locals: { playerId, token },
         } = res;
         const pushSubscriptionId = calculatePushSubscriptionId(req.body);
 
@@ -121,7 +121,7 @@ playersApi.post(
 
         if (pushSubscription) {
             res.send(pushSubscription);
-            await sendExamplePushNotification(playerId);
+            await sendExamplePushNotification(playerId, token);
         } else {
             res.status(500).send();
         }
@@ -254,9 +254,10 @@ playersApi.post(
     },
 );
 
-async function sendExamplePushNotification(playerId: string) {
+async function sendExamplePushNotification(playerId: string, token: string) {
     await sendNotification({
         playerId,
+        token,
         url: null,
         title: "Example Notification",
         message: "This is how Saym notifications will appear",

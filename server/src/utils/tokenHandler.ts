@@ -8,8 +8,12 @@ import { type PlayerModel } from "../../../shared/models/PlayerModels";
 import { ResponseLocals } from "../models";
 import { serverLogger } from "./logger";
 
+interface RequestParams {
+    token?: string;
+}
+
 async function tokenHandler(
-    req: Request,
+    req: Request<RequestParams>,
     res: Response<Record<string, never>, ResponseLocals>,
     next: NextFunction,
 ) {
@@ -18,7 +22,9 @@ async function tokenHandler(
         return;
     }
 
-    const providedToken = cookie.parse(req.headers.cookie ?? "").token;
+    const providedToken =
+        (req.query.token && (req.query.token as string)) ??
+        cookie.parse(req.headers.cookie ?? "").token;
     let existingToken: TokenModel | null = null;
 
     if (providedToken) {
