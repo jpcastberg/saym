@@ -56,8 +56,8 @@ self.addEventListener("push", function (event) {
             return self.registration.showNotification(pushNotification.title, {
                 body: pushNotification.message,
                 data: pushNotification,
-                icon: "/pwa-192x192.png",
-                badge: "/badge-128x128.png",
+                icon: "/favicon-196.png",
+                badge: "/badge-128.png",
             });
         });
 
