@@ -89,19 +89,27 @@ self.addEventListener("notificationclick", (event) => {
                 }
             }
 
-            if (url) {
+            if (windowClients[0]) {
+                // most recently focused window
+                if (url) {
+                    logger.debug(
+                        "existing_window_navigated_to_notification_url",
+                        pushNotification,
+                    );
+                    return windowClients[0].navigate(url);
+                } else {
+                    logger.debug(
+                        "existing_window_focused_from_notification",
+                        pushNotification,
+                    );
+                    return windowClients[0].focus();
+                }
+            } else if (url) {
                 logger.debug(
                     "new_window_opened_from_notification",
                     pushNotification,
                 );
                 return self.clients.openWindow(url);
-            } else if (windowClients[0]) {
-                // most recently focused window
-                logger.debug(
-                    "existing_window_focused_from_notification",
-                    pushNotification,
-                );
-                return windowClients[0].focus();
             }
 
             logger.debug(
