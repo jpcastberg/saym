@@ -120,3 +120,11 @@ self.addEventListener("notificationclick", (event) => {
 
     event.waitUntil(promiseChain);
 });
+
+self.addEventListener("install", async () => {
+    await self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+    event.waitUntil(self.clients.claim());
+});
