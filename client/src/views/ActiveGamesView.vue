@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { useGamesStore, type ComputedGameModel } from "../stores/games";
 import InstallPrompt from "../components/InstallPrompt.vue";
 import logger from "../api/logger";
+import type { TurnModel } from "../../../shared/models/GameModels";
 const router = useRouter();
 const gamesStore = useGamesStore();
 
@@ -32,7 +33,9 @@ function getGameSubtitle(game: ComputedGameModel) {
     if (game.otherPlayer) {
         if (game.isGameComplete) {
             const lastWord = game.currentPlayerTurns[game.currentPlayerTurns.length - 1];
-            uiSubtitle = `Saym! You both guessed ${lastWord.text}.`;
+            // last word may be undefined if the game was ended prior to any guesses
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+            uiSubtitle = `Saym! You both guessed ${lastWord?.text}.`;
         } else if (game.hasPlayerPlayedRound) {
             uiSubtitle = `Waiting for ${game.otherPlayer.username ?? "your friend"
                 } to go`;
