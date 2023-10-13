@@ -84,6 +84,12 @@ export const useGamesStore = defineStore("games", {
             } = router;
             return gameId as string;
         },
+        currentGamesSize(state) {
+            return state.currentGames.size;
+        },
+        finishedGamesSize(state) {
+            return state.finishedGames.size;
+        },
     },
     actions: {
         initGames,

@@ -4,7 +4,6 @@ import { useRouter } from "vue-router";
 import { useGamesStore, type ComputedGameModel } from "../stores/games";
 import InstallPrompt from "../components/InstallPrompt.vue";
 import logger from "../api/logger";
-import type { TurnModel } from "../../../shared/models/GameModels";
 const router = useRouter();
 const gamesStore = useGamesStore();
 
@@ -60,7 +59,7 @@ function getGameSubtitle(game: ComputedGameModel) {
 <template>
     <main>
         <div v-if="gamesStore.areGamesInitialized" class="scroll-container">
-            <div v-if="gamesStore.currentGames.size > 0">
+            <div v-if="gamesStore.currentGamesSize > 0">
                 <v-list lines="two">
                     <v-list-subheader>Active Games</v-list-subheader>
                     <v-divider />
@@ -69,7 +68,7 @@ function getGameSubtitle(game: ComputedGameModel) {
                         @click="event => handleGameClick(event, game?._id)" />
                 </v-list>
             </div>
-            <div v-if="gamesStore.finishedGames.size > 0">
+            <div v-if="gamesStore.finishedGamesSize > 0">
                 <v-list lines="two">
                     <v-list-subheader>Recent Finished Games</v-list-subheader>
                     <v-divider />
