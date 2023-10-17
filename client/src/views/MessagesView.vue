@@ -30,7 +30,7 @@ gamesStore.$subscribe(markLastMessageRead);
 
 function scrollToBottom() {
     scrollContainer.value?.scrollTo({
-        top: scrollContainer.value.offsetHeight
+        top: scrollContainer.value.scrollHeight
     });
 }
 
@@ -84,7 +84,7 @@ function getMessageClass(message: MessageModel) {
                         </span>
                     </template>
                 </div>
-                <v-form class="d-flex align-center justify-center py-2 text-input"
+                <v-form class="d-flex align-center justify-center py-2 mb-3 text-input"
                     @submit.prevent="handleMessageFormSubmit">
                     <v-textarea v-model="messageInput" rows="1" auto-grow persistent-clear clearable hide-details="auto"
                         variant="solo" label="Message" required @click:clear="clearMessageInput"

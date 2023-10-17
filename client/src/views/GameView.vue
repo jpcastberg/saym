@@ -45,7 +45,7 @@ if (gamesStore.currentGameId && gamesStore.activeGameNotFound) {
 
 function scrollToBottom() {
     scrollContainer.value?.scrollTo({
-        top: scrollContainer.value.offsetHeight
+        top: scrollContainer.value.scrollHeight
     });
 }
 
@@ -164,14 +164,14 @@ async function continuePlayingWithOtherPlayer() {
                     </v-btn>
                 </v-card>
                 <v-card v-else-if="gamesStore.activeGame.hasPlayerPlayedRound && !gamesStore.activeGame.isGameComplete"
-                    class="text-center">
+                    class="text-center mb-3">
                     <v-card-text>
                         Waiting for {{ gamesStore.activeGame.otherPlayer?.username || "your friend" }} to
                         {{ gamesStore.activeGame.otherPlayer ? "go" : "join" }}
                     </v-card-text>
                 </v-card>
                 <v-form v-else-if="!gamesStore.activeGame.hasPlayerPlayedRound && !gamesStore.activeGame.isGameComplete"
-                    class="d-flex align-center justify-center py-2 text-input" @submit.prevent="handleTurnFormSubmit">
+                    class="d-flex align-center justify-center py-2 mb-3 text-input" @submit.prevent="handleTurnFormSubmit">
                     <v-text-field v-model="turnInput" :disabled="isTurnSubmissionInProgress" persistent-clear clearable
                         hide-details="auto" variant="solo" :label="getFormPrompt()" required @click:clear="clearTurnInput"
                         @focus="scrollInputIntoView" />
@@ -214,5 +214,9 @@ async function continuePlayingWithOtherPlayer() {
 .complete-card {
     /* height: 30% !important; */
     min-height: 25%;
+}
+
+.v-card {
+    overflow: unset;
 }
 </style>
