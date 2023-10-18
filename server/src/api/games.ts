@@ -315,7 +315,7 @@ async function notifyOtherPlayerOfNewGame(
 ) {
     const currentPlayer = getCurrentPlayer(playerId, game);
     const currentPlayerUsername = currentPlayer?.username ?? "Your friend";
-    const url = `https://${process.env.SAYM_DOMAIN}/games/${game._id}`;
+    const url = `/games/${game._id}`;
     const token = await tokensDbApi.getByPlayerId({ playerId: otherPlayerId });
     const notification: PushNotificationModel = {
         playerId: otherPlayerId,
@@ -335,7 +335,7 @@ async function notifyOtherPlayerOfMove(
 ) {
     const currentPlayer = getCurrentPlayer(playerId, game);
     const currentPlayerUsername = currentPlayer?.username ?? "Your friend";
-    const url = `https://${process.env.SAYM_DOMAIN}/games/${game._id}`;
+    const url = `/games/${game._id}`;
     const title = game.isGameComplete ? "Saym!" : "It's your move!";
     const message = game.isGameComplete
         ? `You and ${currentPlayerUsername} said the saym word!`
@@ -385,7 +385,7 @@ async function notifyOtherPlayerOfMessage(
     }
 
     const currentPlayerUsername = currentPlayer?.username ?? "Your friend";
-    const url = `https://${process.env.SAYM_DOMAIN}/games/${game._id}/messages`;
+    const url = `/games/${game._id}/messages`;
     const token = await tokensDbApi.getByPlayerId({ playerId: otherPlayerId });
     const notification: PushNotificationModel = {
         playerId: otherPlayerId,
