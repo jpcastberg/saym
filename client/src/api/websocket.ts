@@ -4,8 +4,8 @@ import {
 } from "../../../shared/models/GameModels";
 import logger from "./logger";
 
-let websocketCheckInterval: NodeJS.Timer;
-let pingPongInterval: NodeJS.Timer;
+let websocketCheckInterval: NodeJS.Timeout;
+let pingPongInterval: NodeJS.Timeout;
 let websocket: WebSocket;
 type EventCallback = (event: GameResponseModel) => void;
 type EventListeners = Record<string, EventCallback[]>;
