@@ -70,7 +70,7 @@
     "name": "saym_server",
     "scripts": {
         "start": "run-s build start-server",
-        "build": "run-s type-check build-client generate-assets",
+        "build": "run-s type-check build-client",
         "build-client": "vite build client",
         "start-server": "ts-node --project tsconfig.node.json -r dotenv/config server/src/index.ts",
         "generate-assets": "ts-node --project tsconfig.node.json client/generateAssets.ts",
