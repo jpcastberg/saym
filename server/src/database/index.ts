@@ -8,11 +8,13 @@ import {
 import { botName, type PlayerModel } from "../../../shared/models/PlayerModels";
 
 const mongoUri: string =
-    "mongodb+srv://" +
+    "mongodb://" +
     process.env.DB_USERNAME +
     ":" +
     process.env.DB_PASSWORD +
-    "@cluster0.icqn3.mongodb.net/?retryWrites=true&w=majority";
+    "@" +
+    process.env.DB_DOMAIN +
+    "/saym?retryWrites=true&w=majority";
 const options = {
     useNewUrlParser: true,
     useUnifiedTopology: true,
