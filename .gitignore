@@ -4,3 +4,4 @@ node_modules
 server/public
 client/dev-dist
 client/dist
+.npm

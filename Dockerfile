@@ -1,3 +1,3 @@
-FROM node:20-bookworm
+FROM node:lts
 WORKDIR /app
 EXPOSE 7296
