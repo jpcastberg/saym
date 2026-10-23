@@ -13,9 +13,9 @@ const typescriptRules = {
 };
 
 const vueRules = {
-    ...vuePlugin.configs["vue3-essential"].rules,
-    ...vuePlugin.configs["vue3-strongly-recommended"].rules,
-    ...vuePlugin.configs["vue3-recommended"].rules,
+    ...vuePlugin.configs["essential"].rules,
+    ...vuePlugin.configs["strongly-recommended"].rules,
+    ...vuePlugin.configs["recommended"].rules,
     "vue/first-attribute-linebreak": "off",
     "vue/html-closing-bracket-newline": "off",
     "vue/html-indent": "off",

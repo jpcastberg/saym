@@ -1,13 +1,12 @@
 import fs from "fs";
 import path from "path";
-import { Configuration, OpenAIApi } from "openai";
+import OpenAI from "openai";
 import { type GameResponseModel } from "../../../shared/models/GameModels";
 import getRandomIntInclusive from "./getRandomIntInclusive";
 import { serverLogger } from "./logger";
-const configuration = new Configuration({
+const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
-const openai = new OpenAIApi(configuration);
 const prompt = "Complete the list with a single word.";
 const randomWordList = fs
     .readFileSync(path.resolve(__dirname, "randomWords.txt"))
@@ -34,27 +33,32 @@ export async function generateTurnText(
         return acc;
     }, "");
 
-    const response = await openai.createChatCompletion({
-        model: "gpt-3.5-turbo",
-        messages: [
-            {
-                role: "system",
-                content: prompt,
-            },
-            {
-                role: "user",
-                content: wordList,
-            },
-        ],
-        temperature: 1,
-        max_tokens: 256,
-        top_p: 1,
-        frequency_penalty: 0,
-        presence_penalty: 0,
-    });
+    let content: string | undefined;
 
-    const saymbotGuess =
-        response.data.choices[0].message?.content ?? getRandomWord();
+    try {
+        const response = await openai.chat.completions.create({
+            model: "gpt-5-nano",
+            reasoning_effort: "minimal",
+            messages: [
+                {
+                    role: "system",
+                    content: prompt,
+                },
+                {
+                    role: "user",
+                    content: wordList,
+                },
+            ],
+            max_completion_tokens: 256,
+        });
+        content = response.choices[0].message.content?.trim();
+    } catch (error) {
+        serverLogger.error("saymbot_openai_failed", {
+            error: String(error),
+        });
+    }
+
+    const saymbotGuess = content?.length ? content : getRandomWord();
     serverLogger.debug("saymbot_move", {
         move: saymbotGuess,
         game,

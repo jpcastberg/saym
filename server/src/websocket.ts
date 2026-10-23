@@ -1,5 +1,5 @@
 import ws, { type MessageEvent } from "ws";
-import cookie from "cookie";
+import { parseCookie } from "cookie";
 import playersDbApi from "./database/players";
 import tokensDbApi, { type TokenModel } from "./database/token";
 import { serverLogger } from "./utils/logger";
@@ -14,7 +14,12 @@ const playerSocketsMap = new Map<string, PlayerSocket[]>();
 const wsServer = new ws.Server({ noServer: true }); // noServer delegates the connection upgrade to express
 
 wsServer.on("connection", async (socket, req) => {
-    const providedToken = cookie.parse(req.headers.cookie ?? "").token;
+    const providedToken = parseCookie(req.headers.cookie ?? "").token;
+
+    if (!providedToken) {
+        return;
+    }
+
     const existingToken: TokenModel | null = await tokensDbApi.get({
         tokenValue: providedToken,
     });

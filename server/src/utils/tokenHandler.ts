@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { type Request, type Response, type NextFunction } from "express";
-import cookie from "cookie";
+import { parseCookie } from "cookie";
 import { type WithId } from "mongodb";
 import tokensDbApi, { type TokenModel } from "../database/token";
 import playersDbApi from "../database/players";
@@ -24,7 +24,7 @@ async function tokenHandler(
 
     const providedToken =
         (req.query.token && (req.query.token as string)) ??
-        cookie.parse(req.headers.cookie ?? "").token;
+        parseCookie(req.headers.cookie ?? "").token;
     let existingToken: TokenModel | null = null;
 
     if (providedToken) {
